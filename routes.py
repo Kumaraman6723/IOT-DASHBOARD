@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from models import fetch_email, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
 from forms import RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
@@ -14,10 +14,11 @@ import time
 from datetime import datetime
 import uuid
 import logging
+import secrets
+from functools import wraps
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -26,13 +27,13 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated_function
-
 def register_routes(app, oauth):
     # Login route
     @app.route("/", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
             store = fetch_users()
+            print(store)
             token = request.form.get('cf-turnstile-response')
             ip = request.remote_addr
 
@@ -52,9 +53,9 @@ def register_routes(app, oauth):
             email = request.form["email"]
             password = request.form["password"]
             user = next((x for x in store if x[0] == email), None)
-
             if user and check_password(user[1], password):
                 session["login_email"] = email
+                
                 return redirect(url_for('two_step'))
             else:
                 flash("Invalid email or password", "error")
@@ -63,75 +64,81 @@ def register_routes(app, oauth):
 
     # Home route
     @app.route("/home")
-    @login_required
     def home():
         return render_template("home.html", session=session.get("user"),
                                pretty=json.dumps(session.get("user"), indent=4))
 
-    # Google OAuth routes
+# Google OAuth routes
 # Google OAuth routes
     @app.route("/signin-google")
     def googleCallback():
-        try:
-            token = oauth.myApp.authorize_access_token()
-        except OAuthError:
-            return redirect(url_for("login"))
+     try:
+        token = oauth.myApp.authorize_access_token()
+     except OAuthError:
+        return redirect(url_for("login"))
 
-        # Fetch user info and person data
-        user_info_response = requests.get(
-            f'https://www.googleapis.com/oauth2/v1/userinfo?access_token={token["access_token"]}',
-            headers={'Authorization': f'Bearer {token["access_token"]}'}
-        )
-        user_info = user_info_response.json()
+    # Fetch user info and person data
+     user_info_response = requests.get(
+        f'https://www.googleapis.com/oauth2/v1/userinfo?access_token={token["access_token"]}',
+        headers={'Authorization': f'Bearer {token["access_token"]}'}
+     )
+     user_info = user_info_response.json()
 
-        person_data_response = requests.get(
-            "https://people.googleapis.com/v1/people/me?personFields=genders,birthdays",
-            headers={"Authorization": f"Bearer {token['access_token']}"}
-        )
-        person_data = person_data_response.json()
+     person_data_response = requests.get(
+        "https://people.googleapis.com/v1/people/me?personFields=genders,birthdays",
+        headers={"Authorization": f"Bearer {token['access_token']}"}
+     )
+     person_data = person_data_response.json()
 
-        token["user_info"] = user_info
-        token["person_data"] = person_data
-        session["user"] = token
+     token["user_info"] = user_info
+     token["person_data"] = person_data
+     session["user"] = token
 
-        # Extract additional data
-        email = user_info["email"]
-        first_name = user_info.get("given_name", "")
-        last_name = user_info.get("family_name", "")
-        profile_id = str(uuid.uuid4())
+    # Extract additional data
+     email = user_info["email"]
+     first_name = user_info.get("given_name", "")
+     last_name = user_info.get("family_name", "")
+     profile_id = str(uuid.uuid4())
 
-        # Extract birthday and gender
-        birthday = None
-        gender = None
+    # Extract birthday and gender
+     birthday = None
+     gender = None
 
-        if "birthdays" in person_data and person_data["birthdays"]:
-            birthday_data = person_data["birthdays"][0].get("date")
-            if birthday_data:
-                birthday = f"{birthday_data.get('year', '0000')}-{birthday_data.get('month', '00')}-{birthday_data.get('day', '00')}"
+     if "birthdays" in person_data and person_data["birthdays"]:
+        birthday_data = person_data["birthdays"][0].get("date")
+        if birthday_data:
+            birthday = f"{birthday_data.get('year', '0000')}-{birthday_data.get('month', '00')}-{birthday_data.get('day', '00')}"
 
-        if "genders" in person_data and person_data["genders"]:
-            gender = person_data["genders"][0].get("value")
+     if "genders" in person_data and person_data["genders"]:
+        gender = person_data["genders"][0].get("value")
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM user_profiles WHERE email=%s", (email,))
-        existing_user = cur.fetchone()
+     conn = get_db_connection()
+     cur = conn.cursor()
+     cur.execute("SELECT * FROM user_profiles WHERE email=%s", (email,))
+     existing_user = cur.fetchone()
 
-        if existing_user:
-            # Check if the user profile is complete (no null values)
-            if all(value is not None for value in existing_user):
-                conn.close()
-                return redirect(url_for("DashBoard"))
+     if existing_user:
+        # Use the existing contact if it exists
+        existing_contact = existing_user[6]  # Assuming contact is the 6th field in the user_profiles table
+        if all(value is not None for value in existing_user):
+            conn.close()
+            return redirect(url_for("DashBoard"))
 
         cur.execute(
-            "INSERT INTO user_profiles (email, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE name=%s, birthday=%s, gender=%s, contact=%s",
-            (email, f"{first_name} {last_name}", birthday, gender, None, profile_id, f"{first_name} {last_name}", birthday, gender, None)
+            "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s WHERE email=%s",
+            (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
         )
-        conn.commit()
-        conn.close()
+     else:
+        # Insert a new user with contact set to None
+        cur.execute(
+            "INSERT INTO user_profiles (email, password, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (email, profile_id, f"{first_name} {last_name}", birthday, gender, None, profile_id)
+        )
+     conn.commit()
+     conn.close()
 
-        return redirect(url_for("profile"))
+     return redirect(url_for("profile"))
+
 
     @app.route("/google-login")
     def googleLogin():
@@ -294,7 +301,7 @@ def register_routes(app, oauth):
             flash("Password reset successful. Please log in.", "success")
             return redirect(url_for('login'))
 
-        return render_template("forgot_pass.html", form=form)
+        return render_template("forgot_password.html", form=form)
 
     @app.route("/email-otp", methods=["GET", "POST"])
     def mail_otp():
@@ -319,8 +326,8 @@ def register_routes(app, oauth):
                 cur = conn.cursor()
               
                 cur.execute(
-                    "INSERT INTO user_profiles (email, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (session["email"], f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
+                    "INSERT INTO user_profiles (email,password,name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s,%s)",
+                    (session["email"],session["password"] ,f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
                 )
                 conn.commit()
                 conn.close()
@@ -333,81 +340,142 @@ def register_routes(app, oauth):
         return render_template("email_verify.html", form=form)
 
     def fetch_user_profile(email):
-        logging.debug(f"Fetching profile for email: {email}")
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT * FROM user_profiles WHERE email = %s", (email,))
-            profile = cur.fetchone()
-            conn.commit()
-            conn.close()
-            logging.debug(f"Profile fetched: {profile}")
-            return profile
-        except Exception as e:
-            logging.error(f"Error fetching profile for email {email}: {e}")
-            return None
+     logging.debug(f"Fetching profile for email: {email}")
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM user_profiles WHERE email = %s", (email,))
+        profile = cur.fetchone()
+        conn.commit()
+        conn.close()
+        logging.debug(f"Profile fetched: {profile}")
+        return profile
+     except Exception as e:
+        logging.error(f"Error fetching profile for email {email}: {e}")
+        return None
 
     @app.route("/profile", methods=["GET", "POST"])
     @login_required
     def profile():
-        email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
-        if not email:
-            flash("User email not found in session.", "error")
-            return redirect(url_for("login"))
+     email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
+     if not email:
+        flash("User email not found in session.", "error")
+        return redirect(url_for("login"))
 
-        profile = fetch_user_profile(email)
-        if profile is None:
-            flash("User profile not found.", "error")
-            return redirect(url_for("login"))
-        if profile:
-            # Check if the user profile is complete (no null values)
-            if all(value is not None for value in profile):
-                
-                return redirect(url_for("DashBoard"))
+     profile = fetch_user_profile(email)
+     if profile is None:
+        flash("User profile not found.", "error")
+        return redirect(url_for("login"))
 
-        form = UpdateProfileForm()
+     if profile:
+        # Check if the user profile is complete (no null values)
+        if all(value is not None for value in profile):
+            return redirect(url_for("DashBoard"))
 
-        if request.method == "POST":
-            try:
-                conn = get_db_connection()
-                cur = conn.cursor()
-                cur.execute(
-                    """
-                    UPDATE user_profiles SET
-                        name = %s,
-                        birthday = %s,
-                        gender = %s,
-                        contact = %s,
-                        company_name = %s,
-                        position = %s
-                    WHERE email = %s
-                    """,
-                    (
-                        request.form.get("name"),
-                        request.form.get("birthday"),
-                        request.form.get("gender"),
-                        request.form.get("contact"),
-                        request.form.get("orgName"),
-                        request.form.get("position"),
-                        email
-                    )
+     form = UpdateProfileForm()
+
+     if request.method == "POST":
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE user_profiles SET
+                    name = %s,
+                    birthday = %s,
+                    gender = %s,
+                    contact = %s,
+                    company_name = %s,
+                    position = %s
+                WHERE email = %s
+                """,
+                (
+                    request.form.get("name"),
+                    request.form.get("birthday"),
+                    request.form.get("gender"),
+                    request.form.get("contact"),
+                    request.form.get("orgName"),
+                    request.form.get("position"),
+                    email
                 )
-                conn.commit()
-                conn.close()
-                flash("Profile updated successfully.", "success")
-                    # Check for null values after update
-                updated_profile = fetch_user_profile(email)
-                if any(value is None for value in updated_profile.values()):
-                 return render_template("profile.html", profile=updated_profile)
-                else:
-                 return redirect(url_for("DashBoard"))
-            except Exception as e:
-             logging.error(f"Error updating profile for email {email}: {e}")
-             flash("An error occurred while updating the profile.", "error")
+            )
+            conn.commit()
+            conn.close()
+            flash("Profile updated successfully.", "success")
+            
+            # Check for null values after update
+            updated_profile = fetch_user_profile(email)
+            if any(value is None for value in updated_profile):
+                return render_template("profile.html", profile=updated_profile)
+            else:
+                return redirect(url_for("DashBoard"))
+        except Exception as e:
+            logging.error(f"Error updating profile for email {email}: {e}")
+            flash("An error occurred while updating the profile.", "error")
 
-             return redirect(url_for("DashBoard"))
-        return render_template("profile.html", profile=profile)
+     return render_template("profile.html", profile=profile)
 
 
         
 
+    #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
+    SECRET_TOKEN = "tR7Hs9Ky3Lm1Pq4Xw2Zb8Nf5Vj7Cd6"
+
+    def require_auth(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+         auth_header = request.headers.get('Authorization')
+         if not auth_header:
+            return jsonify({"error": "Authorization header is missing"}), 401
+         try:
+            auth_type, token = auth_header.split()
+            
+            if auth_type.lower() != 'bearer':
+                return jsonify({"error": "Bearer token required"}), 401
+            
+            # Use secrets.compare_digest for secure string comparison
+            if not secrets.compare_digest(token, SECRET_TOKEN):
+                return jsonify({"error": "Invalid token"}), 401
+         except ValueError:
+            return jsonify({"error": "Invalid Authorization header format"}), 401
+         return f(*args, **kwargs)
+        return decorated
+    
+
+    @app.route('/protected')
+    @require_auth
+    def protected():
+        return jsonify({"message": "This is a protected route"})
+        # If authentication is successful, proceed to execute the decorated function
+        return f(*args, **kwargs)
+        return decorated
+
+
+    @app.route("/device", methods=['GET'])
+    @require_auth
+    def handle_device():
+        device_id = request.args.get('device_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        if not device_id:
+            return jsonify({"error": "No device ID provided"}), 400
+        
+        try:
+            # Use parameterized queries to prevent SQL injection
+            cur.execute("UPDATE token_device SET Device_id = %s WHERE Device_id IS NULL", (device_id,))
+            conn.commit()
+            
+            cur.execute("SELECT Token_id FROM token_device WHERE Device_id = %s", (device_id,))
+            token = cur.fetchall()
+            
+            token_data = jsonify({"device_id": device_id, "token": token}), 200
+            return token_data
+        
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        
+        finally:
+            cur.close()
+            conn.close() 
