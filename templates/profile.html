@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../static/css/profile.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h1 class="mb-0">Personal Info</h1>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-4">
+                            <div class="col-12">
+                                <img id="image" class="profile-picture img-thumbnail rounded-circle mb-3" alt="Profile Image" style="width: 150px; height: 150px;">
+                                <div class="edit-profile-picture">
+                                    <label for="profilePicture" class="btn btn-secondary">
+                                        <i class="fas fa-camera"></i> Change Profile Picture
+                                    </label>
+                                    <input type="file" id="profilePicture" accept="image/*" class="d-none" onchange="previewImage(event)">
+                                </div>
+                            </div>
+                        </div>
+                        <form id="personalInfoForm" method="POST" action="{{ url_for('profile') }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ profile[2] }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="birthday" class="form-label">Birthday</label>
+                                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ profile[3] }}">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="gender" class="form-label">Gender</label>
+                                    <select class="form-select" id="gender" name="gender">
+                                        <option value="Male" {% if profile[4] == 'Male' %}selected{% endif %}>Male</option>
+                                        <option value="Female" {% if profile[4] == 'Female' %}selected{% endif %}>Female</option>
+                                        <option value="Other" {% if profile[4] == 'Other' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email" value="{{ profile[1] }}" readonly>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="contact" class="form-label">Contact Number</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png" alt="India Flag" class="img-fluid" style="width: 20px;"> +91</span>
+                                        <input type="tel" class="form-control" id="contact" name="contact" value="{{ profile[5] }}" pattern="[0-9]{10}" placeholder="10-digit contact number" required>
+                                    </div>
+                                    <div class="invalid-feedback">Please enter a valid 10-digit contact number.</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="orgName" class="form-label">Company Name</label>
+                                    <input type="text" class="form-control" id="orgName" name="orgName" value="{{ profile[9] }}">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="position" class="form-label">Position</label>
+                                <input type="text" class="form-control" id="position" name="position" value="{{ profile[10] }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Update</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function previewImage(event) {
+            const reader = new FileReader();
+            const imageField = document.getElementById("image");
+            reader.onload = function() {
+                if (reader.readyState === 2) {
+                    imageField.src = reader.result;
+                }
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        document.getElementById('contact').addEventListener('input', function (e) {
+            if (this.value.length > 10) {
+                this.value = this.value.slice(0, 10);
+            }
+        });
+
+        document.getElementById('contact').addEventListener('blur', function (e) {
+            if (!/^\d{10}$/.test(this.value)) {
+                this.setCustomValidity('Please enter a valid 10-digit contact number.');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    </script>
+</body>
+</html>
