@@ -18,35 +18,23 @@
                 <div class="card">
                     <div class="card-header text-center bg-primary text-white">
                         <h1 class="mb-0">Personal Info</h1>
-                    </div>
-                    <div class="card-body">
-                        <div class="row text-center mb-4">
-                            <div class="col-12">
-                                <img id="image" class="profile-picture img-thumbnail rounded-circle mb-3" alt="Profile Image" style="width: 150px; height: 150px;">
-                                <div class="edit-profile-picture">
-                                    <label for="profilePicture" class="btn btn-secondary">
-                                        <i class="fas fa-camera"></i> Change Profile Picture
-                                    </label>
-                                    <input type="file" id="profilePicture" accept="image/*" class="d-none" onchange="previewImage(event)">
-                                </div>
-                            </div>
-                        </div>
+                    
                         <form id="personalInfoForm" method="POST" action="{{ url_for('profile') }}">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <div class="row mb-3">
                                 <div class="col-md-6 mb-3">
                                     <label for="name" class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="name" name="name" value="{{ profile[2] }}">
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ profile[2] }}" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="birthday" class="form-label">Birthday</label>
-                                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ profile[3] }}">
+                                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ profile[3] }}" required>
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-6 mb-3">
                                     <label for="gender" class="form-label">Gender</label>
-                                    <select class="form-select" id="gender" name="gender">
+                                    <select class="form-select" id="gender" name="gender" required>
                                         <option value="Male" {% if profile[4] == 'Male' %}selected{% endif %}>Male</option>
                                         <option value="Female" {% if profile[4] == 'Female' %}selected{% endif %}>Female</option>
                                         <option value="Other" {% if profile[4] == 'Other' %}selected{% endif %}>Other</option>
@@ -68,12 +56,12 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="orgName" class="form-label">Company Name</label>
-                                    <input type="text" class="form-control" id="orgName" name="orgName" value="{{ profile[9] }}">
+                                    <input type="text" class="form-control" id="orgName" name="orgName" value="{{ profile[9] }}" required>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="position" class="form-label">Position</label>
-                                <input type="text" class="form-control" id="position" name="position" value="{{ profile[10] }}">
+                                <input type="text" class="form-control" id="position" name="position" value="{{ profile[10] }}" required>
                             </div>
                             <button type="submit" class="btn btn-primary w-100">Update</button>
                         </form>
