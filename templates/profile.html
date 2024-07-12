@@ -1,17 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Profile</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="../static/css/profile.css">
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
+
+    {% include "header.html" %}
     <main class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -24,11 +12,11 @@
                             <div class="row mb-3">
                                 <div class="col-md-6 mb-3">
                                     <label for="name" class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="name" name="name" value="{{ profile[2] }}" required>
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ profile[3] }}" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="birthday" class="form-label">Birthday</label>
-                                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ profile[3] }}" required>
+                                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ profile[4] }}" required>
                                 </div>
                             </div>
                             <div class="row mb-3">
@@ -50,18 +38,18 @@
                                     <label for="contact" class="form-label">Contact Number</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png" alt="India Flag" class="img-fluid" style="width: 20px;"> +91</span>
-                                        <input type="tel" class="form-control" id="contact" name="contact" value="{{ profile[5] }}" pattern="[0-9]{10}" placeholder="10-digit contact number" required>
+                                        <input type="tel" class="form-control" id="contact" name="contact" value="{{ profile[6] }}" pattern="[0-9]{10}" placeholder="10-digit contact number" required>
                                     </div>
                                     <div class="invalid-feedback">Please enter a valid 10-digit contact number.</div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="orgName" class="form-label">Company Name</label>
-                                    <input type="text" class="form-control" id="orgName" name="orgName" value="{{ profile[9] }}" required>
+                                    <input type="text" class="form-control" id="orgName" name="orgName" value="{{ profile[10] }}" required>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="position" class="form-label">Position</label>
-                                <input type="text" class="form-control" id="position" name="position" value="{{ profile[10] }}" required>
+                                <input type="text" class="form-control" id="position" name="position" value="{{ profile[11] }}" required>
                             </div>
                             <button type="submit" class="btn btn-primary w-100">Update</button>
                         </form>
@@ -100,5 +88,5 @@
             }
         });
     </script>
-</body>
-</html>
+
+{% include "footer.html" %}
