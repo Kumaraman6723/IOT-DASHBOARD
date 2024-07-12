@@ -13,7 +13,7 @@ def get_db_connection():
 def fetch_email():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT Email FROM auth")
+    cur.execute("SELECT Email FROM user_profiles")
     output = cur.fetchall()
     conn.close()
     return [i[0] for i in output]
@@ -28,7 +28,7 @@ def recover_passkey(new_password, email):
 def fetch_users():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT Email, Password FROM auth")
+    cur.execute("SELECT Email, Password FROM user_profiles")
     output = cur.fetchall()
     conn.close()
     return output
