@@ -11,6 +11,34 @@
     <link rel="stylesheet" href="chart-styles.css" />
     <title>Temp Dashboard</title>
     <style>
+      .device-counter {
+        display: flex;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .device-counter button {
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        text-align: center;
+        line-height: 30px;
+        border: 1px solid #ddd;
+        background-color: #f2f2f2;
+        cursor: pointer;
+      }
+
+      .device-counter span {
+        width: 30px;
+        text-align: center;
+        margin: 0 10px;
+        font-size: 20px;
+      }
+
+      #device-list {
+        margin-top: 20px;
+      }
+
       .content-section {
         display: none;
       }
@@ -92,31 +120,15 @@
             ><i class="bx bxs-dashboard"></i>Dashboard</a
           >
         </li>
-        <li>
-          <a href="#" id="shop-link"><i class="bx bx-store-alt"></i>Shop</a>
-        </li>
         <li class="active">
           <a href="#" id="analytics-link"
             ><i class="bx bx-analyse"></i>Analytics</a
           >
         </li>
         <li>
-          <a href="#" id="tickets-link"
-            ><i class="bx bx-message-square-dots"></i>Tickets</a
+          <a href="#" id="Request-device-link"
+            ><i class="bx bx-devices"></i>Request Device Data</a
           >
-        </li>
-        <li>
-          <a href="#" id="add-device-link"
-            ><i class="bx bx-devices"></i>Add Devices</a
-          >
-        </li>
-        <li>
-          <a href="#" id="view-device-link"
-            ><i class="bx bx-show-alt"></i>View Devices</a
-          >
-        </li>
-        <li>
-          <a href="#" id="settings-link"><i class="bx bx-cog"></i>Settings</a>
         </li>
       </ul>
       <ul class="side-menu">
@@ -167,10 +179,6 @@
             activity.
           </p>
         </div>
-        <div id="shop-content" class="content-section">
-          <h2>Shop Content</h2>
-          <p>Here you can browse and purchase products.</p>
-        </div>
         <div id="analytics-content" class="content-section">
           <h2>Analytics Content</h2>
           <div class="chart-container">
@@ -199,63 +207,21 @@
             <div id="batteryTable" class="table-container"></div>
           </div>
         </div>
-        <div id="tickets-content" class="content-section">
-          <h2>Tickets Content</h2>
-          <p>Here you can view and manage support tickets.</p>
-        </div>
-        <div id="users-content" class="content-section">
-          <h2>Users Content</h2>
-          <p>Here you can manage user accounts and permissions.</p>
-        </div>
-        <div id="settings-content" class="content-section">
-          <h2>Settings Content</h2>
-          <p>Here you can adjust your account settings and preferences.</p>
-        </div>
         <div id="device-content" class="content-section">
-          <h2>Add Devices</h2>
-          <form id="device-form">
-            <label for="entityName">Entity Name</label>
-            <input type="text" id="entityName" name="entityName" required />
-            <label for="deviceIMEI">Device IMEI</label>
-            <input type="text" id="deviceIMEI" name="deviceIMEI" required />
-            <label for="simICCId">SIM ICC ID</label>
-            <input type="text" id="simICCId" name="simICCId" required />
-            <label for="batterySLNo">Battery SL No</label>
-            <input type="text" id="batterySLNo" name="batterySLNo" required />
-            <label for="panelSLNo">Panel SL No</label>
-            <input type="text" id="panelSLNo" name="panelSLNo" required />
-            <label for="luminarySLNo">Luminary SL No</label>
-            <input type="text" id="luminarySLNo" name="luminarySLNo" required />
-            <label for="mobileNo">Mobile No</label>
-            <input type="text" id="mobileNo" name="mobileNo" required />
-            <label for="district">District</label>
-            <input type="text" id="district" name="district" required />
-            <label for="panchayat">Panchayat</label>
-            <input type="text" id="panchayat" name="panchayat" required />
-            <label for="block">Block</label>
-            <input type="text" id="block" name="block" required />
-            <label for="wardNo">Ward No</label>
-            <input type="text" id="wardNo" name="wardNo" required />
-            <label for="poleNo">Pole No</label>
-            <input type="text" id="poleNo" name="poleNo" required />
-            <label for="active">Active</label>
-            <select id="active" name="active" required>
-              <option value="true">True</option>
-              <option value="false">False</option>
-            </select>
-            <label for="installationDate">Installation Date</label>
-            <input
-              type="date"
-              id="installationDate"
-              name="installationDate"
-              required
-            />
-            <button type="submit">Submit</button>
-          </form>
-        </div>
-        <div id="view-device-content" class="content-section">
-          <h2>View Devices</h2>
+          <h2>Request Device Data</h2>
+          <div class="device-counter">
+            <button id="decrease-device" onclick="changeDeviceCount(-1)">
+              -
+            </button>
+            <span id="device-count">0</span>
+            <button id="increase-device" onclick="changeDeviceCount(1)">
+              +
+            </button>
+          </div>
           <div id="device-list"></div>
+          <button id="request-device" onclick="requestDeviceData()">
+            Request
+          </button>
         </div>
       </main>
     </div>
@@ -264,37 +230,214 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@latest"></script>
     <script src="../static/js/script.js"></script>
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // Fetch notifications from the external JSON link
-        axios
-          .get("http://127.0.0.1:5500/jsonData.json")
-          .then(function (response) {
-            const notifications = response.data; // Directly using the response data
-            const notificationList =
-              document.getElementById("notification-list");
-
-            // Loop through notifications and append to the list
-            notifications.forEach(function (notification) {
-              if (notification.error === "300") {
-                const listItem = document.createElement("li");
-                listItem.textContent = `Error 300: ${notification.date}`;
-                notificationList.appendChild(listItem);
-              }
-            });
-
-            // Show the notification content if there are notifications
-            if (notificationList.children.length > 0) {
-              document.querySelector(".notif-content").style.display = "block";
-            }
+      function showContent(sectionId) {
+        // Hide all content sections
+        document
+          .querySelectorAll(".content-section")
+          .forEach(function (section) {
+            section.style.display = "none";
           });
 
-        // Toggle notification display on click
-        document.querySelector(".notif").addEventListener("click", function () {
-          const notifContent = document.querySelector(".notif-content");
-          notifContent.style.display =
-            notifContent.style.display === "none" ? "block" : "none";
+        // Show the selected content section
+        document.getElementById(sectionId).style.display = "block";
+      }
+
+      // Add event listeners to sidebar links
+      document
+        .getElementById("dashboard-link")
+        .addEventListener("click", function () {
+          showContent("dashboard-content");
         });
+
+      document
+        .getElementById("analytics-link")
+        .addEventListener("click", function () {
+          showContent("analytics-content");
+        });
+
+      document
+        .getElementById("Request-device-link")
+        .addEventListener("click", function () {
+          showContent("device-content");
+        });
+
+      // Default content to show on page load
+      showContent("dashboard-content");
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const url =
+          "http://127.0.0.1:5500/DashBoardMain-main/templates/jsonData.json";
+
+        axios
+          .get(url)
+          .then((response) => {
+            const data = response.data;
+            processChartData(data);
+          })
+          .catch((error) => {
+            console.error("Error fetching data: ", error);
+          });
+
+        function processChartData(data) {
+          // Extracting data for charts
+          const labels = []; // Use appropriate labels
+          const voltageData = [];
+          const currentData = [];
+          const powerData = [];
+          const brightnessData = [];
+          const batteryData = [];
+
+          // Assuming `data` contains an array of records
+          data.forEach((record) => {
+            labels.push(record.date); // Use the date field
+
+            voltageData.push(record.PV);
+            currentData.push(record.PC);
+            powerData.push(record.PP);
+            brightnessData.push(record.BrL);
+            batteryData.push(record.BTem);
+          });
+
+          createChart(
+            "voltageChart",
+            "Voltage",
+            labels,
+            voltageData,
+            "Voltage (V)",
+            "voltageTable"
+          );
+          createChart(
+            "currentChart",
+            "Current",
+            labels,
+            currentData,
+            "Current (A)",
+            "currentTable"
+          );
+          createChart(
+            "powerChart",
+            "Power",
+            labels,
+            powerData,
+            "Power (W)",
+            "powerTable"
+          );
+          createChart(
+            "brightnessChart",
+            "Brightness Level",
+            labels,
+            brightnessData,
+            "Brightness (%)",
+            "brightnessTable"
+          );
+          createChart(
+            "batteryChart",
+            "Battery Temperature",
+            labels,
+            batteryData,
+            "Temperature (°C)",
+            "batteryTable"
+          );
+        }
+
+        function createChart(
+          chartId,
+          title,
+          labels,
+          data,
+          yAxisLabel,
+          tableId
+        ) {
+          const ctx = document.getElementById(chartId).getContext("2d");
+          new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: title,
+                  data: data,
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                  fill: false,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              title: {
+                display: true,
+                text: title,
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    unit: "day",
+                  },
+                  title: {
+                    display: true,
+                    text: "Date",
+                  },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: yAxisLabel,
+                  },
+                },
+              },
+            },
+          });
+
+          createTable(tableId, labels, data, title);
+        }
+
+        function createTable(tableId, labels, data, title) {
+          const tableContainer = document.getElementById(tableId);
+          const table = document.createElement("table");
+          const thead = document.createElement("thead");
+          const tbody = document.createElement("tbody");
+
+          // Create header row
+          const headerRow = document.createElement("tr");
+          const dateHeader = document.createElement("th");
+          dateHeader.textContent = "Date";
+          const dataHeader = document.createElement("th");
+          dataHeader.textContent = title;
+          headerRow.appendChild(dateHeader);
+          headerRow.appendChild(dataHeader);
+          thead.appendChild(headerRow);
+
+          // Create data rows
+          for (let i = 0; i < labels.length; i++) {
+            const row = document.createElement("tr");
+            const dateCell = document.createElement("td");
+            dateCell.textContent = labels[i];
+            const dataCell = document.createElement("td");
+            dataCell.textContent = data[i];
+            row.appendChild(dateCell);
+            row.appendChild(dataCell);
+            tbody.appendChild(row);
+          }
+
+          table.appendChild(thead);
+          table.appendChild(tbody);
+          tableContainer.appendChild(table);
+        }
       });
+
+      function changeDeviceCount(change) {
+        const countElement = document.getElementById("device-count");
+        let count = parseInt(countElement.textContent) + change;
+        count = count < 0 ? 0 : count;
+        countElement.textContent = count;
+      }
+
+      function requestDeviceData() {
+        const count = document.getElementById("device-count").textContent;
+        alert(`Requesting data for ${count} devices.`);
+      }
     </script>
   </body>
 </html>
