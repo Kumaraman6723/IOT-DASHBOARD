@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models import fetch_email, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
 from forms import RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
@@ -17,6 +17,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -25,6 +26,7 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated_function
+
 def register_routes(app, oauth):
     # Login route
     @app.route("/", methods=["GET", "POST"])
@@ -61,6 +63,7 @@ def register_routes(app, oauth):
 
     # Home route
     @app.route("/home")
+    @login_required
     def home():
         return render_template("home.html", session=session.get("user"),
                                pretty=json.dumps(session.get("user"), indent=4))
@@ -314,10 +317,7 @@ def register_routes(app, oauth):
                 # Save user data to database
                 conn = get_db_connection()
                 cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO auth (Email, Password, first_name, last_name, Contact) VALUES (%s, %s, %s, %s, %s)",
-                    (session["email"], session["password"], session["first_name"], session["last_name"], session["contact"])
-                )
+              
                 cur.execute(
                     "INSERT INTO user_profiles (email, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s)",
                     (session["email"], f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
@@ -348,6 +348,7 @@ def register_routes(app, oauth):
             return None
 
     @app.route("/profile", methods=["GET", "POST"])
+    @login_required
     def profile():
         email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
         if not email:
@@ -410,4 +411,3 @@ def register_routes(app, oauth):
 
         
 
- 
