@@ -29,38 +29,40 @@ def login_required(f):
 
 def register_routes(app, oauth):
     # Login route
+    # Login route
     @app.route("/", methods=["GET", "POST"])
     def login():
-        if request.method == "POST":
-            store = fetch_users()
-            token = request.form.get('cf-turnstile-response')
-            ip = request.remote_addr
+     if request.method == "POST":
+        store = fetch_users()
+        token = request.form.get('cf-turnstile-response')
+        ip = request.remote_addr
 
-            # Verify Cloudflare Turnstile
-            form_data = {
-                'secret': SECRET_KEY,
-                'response': token,
-                'remoteip': ip
-            }
-            response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
-            outcome = response.json()
+        # Verify Cloudflare Turnstile
+        form_data = {
+            'secret': SECRET_KEY,
+            'response': token,
+            'remoteip': ip
+        }
+        response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
+        outcome = response.json()
 
-            if not outcome['success']:
-                flash('The provided Turnstile token was not valid!', 'error')
-                return redirect(url_for('login'))
+        if not outcome['success']:
+            flash('The provided Turnstile token was not valid!', 'error')
+            return redirect(url_for('login'))
 
-            email = request.form["email"]
-            password = request.form["password"]
-            user = next((x for x in store if x[0] == email), None)
+        email = request.form["email"]
+        password = request.form["password"]
+        user = next((x for x in store if x[0] == email), None)
 
-            if user and check_password(user[1], password):
-                session["login_email"] = email
-                return redirect(url_for('two_step'))
-            else:
-                flash("Invalid email or password", "error")
+        if user and check_password(user[1], password):
+            session["login_email"] = email
+            session["user"] = {"email": email}
+            log_action(email, "User logged in")
+            return redirect(url_for('two_step'))
+        else:
+            flash("Invalid email or password", "error")
 
-        return render_template("login.html", site_key=SITE_KEY)
-
+     return render_template("login.html", site_key=SITE_KEY)
     # Home route
     @app.route("/home")
     @login_required
@@ -69,7 +71,6 @@ def register_routes(app, oauth):
                                pretty=json.dumps(session.get("user"), indent=4))
 
     # Google OAuth routes
-# Google OAuth routes
     @app.route("/signin-google")
     def googleCallback():
      try:
@@ -137,7 +138,11 @@ def register_routes(app, oauth):
      conn.commit()
      conn.close()
 
+    # Save email in the session
+     session["login_email"] = email
+
      return redirect(url_for("profile"))
+
 
 
     @app.route("/google-login")
@@ -148,12 +153,14 @@ def register_routes(app, oauth):
     # Logout route
     @app.route("/logout")
     def logout():
-        if "user" in session:
-            token = session["user"].get("access_token")
-            if token:
-                requests.post("https://accounts.google.com/o/oauth2/revoke", params={"token": token})
-        session.clear()
-        return redirect(url_for("login"))
+     email = session.get("user", {}).get("email", "Unknown user")
+     if "user" in session:
+        token = session["user"].get("access_token")
+        if token:
+            requests.post("https://accounts.google.com/o/oauth2/revoke", params={"token": token})
+     log_action(email, "User logged out")
+     session.clear()
+     return redirect(url_for("login"))
 
     @app.route("/register", methods=["GET", "POST"])
     def register():
@@ -176,6 +183,7 @@ def register_routes(app, oauth):
             if session["email"] in fetch_email():
                 flash("This email is already registered. Please use a different email.", "danger")
             else:
+                log_action(session["email"], "User registered")
                 return redirect(url_for("mail_otp"))
 
         return render_template("register.html", form=form)
@@ -301,7 +309,7 @@ def register_routes(app, oauth):
             flash("Password reset successful. Please log in.", "success")
             return redirect(url_for('login'))
 
-        return render_template("forgot_pass.html", form=form)
+        return render_template("forgot_password.html", form=form)
 
     @app.route("/email-otp", methods=["GET", "POST"])
     def mail_otp():
@@ -402,6 +410,7 @@ def register_routes(app, oauth):
             )
             conn.commit()
             conn.close()
+            log_action(email, "Profile updated")
             flash("Profile updated successfully.", "success")
             
             # Check for null values after update
@@ -416,19 +425,90 @@ def register_routes(app, oauth):
             flash("An error occurred while updating the profile.", "error")
 
      return render_template("profile.html", profile=profile)
-    # Route to save device data
-    @app.route("/profile-content")
+     
+     
+     
+    @app.route("/profile-content", methods=["GET", "POST"])
     @login_required
     def profile_content():
      email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
      if not email:
+        logging.error("User email not found in session.")
         return jsonify({"error": "User email not found in session."}), 400
 
      profile = fetch_user_profile(email)
      if profile is None:
+        logging.error(f"User profile not found for email: {email}")
         return jsonify({"error": "User profile not found."}), 404
 
-     return render_template("profile_content.html", profile=profile)
+     form = UpdateProfileForm()
+
+     if request.method == "POST":
+        if form.validate_on_submit():
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                logging.info(f"Updating profile for email: {email} with data: {request.form}")
+                cur.execute(
+                    """
+                    UPDATE user_profiles SET
+                        name = %s,
+                        birthday = %s,
+                        gender = %s,
+                        contact = %s,
+                        company_name = %s,
+                        position = %s
+                    WHERE email = %s
+                    """,
+                    (
+                        request.form.get("name"),
+                        request.form.get("birthday"),
+                        request.form.get("gender"),
+                        request.form.get("contact"),
+                        request.form.get("orgName"),
+                        request.form.get("position"),
+                        email
+                    )
+                )
+                conn.commit()
+                conn.close()
+                log_action(email, "Profile updated")
+                flash("Profile updated successfully.", "success")
+
+                # Update the session with the updated profile data
+                session["user"] = fetch_user_profile(email)
+                logging.info(f"Session updated with new profile data for email: {email}")
+
+                # Check for null values after update
+                updated_profile = fetch_user_profile(email)
+                if any(value is None for value in updated_profile.values()):
+                    logging.warning(f"Null values found in updated profile for email: {email}")
+                    return render_template("profile_content.html", profile=updated_profile, form=form)
+                else:
+                    session["user"] = {"email": email}
+                    return redirect(url_for("DashBoard"))
+            except Exception as e:
+                logging.error(f"Error updating profile for email {email}: {e}")
+                flash("An error occurred while updating the profile.", "error")
+        else:
+            logging.warning(f"Form validation failed for email: {email}. Errors: {form.errors}")
+
+     return render_template("profile_content.html", profile=profile, form=form)
+
+
+
+
+    #log function
+    def log_action(user_email, action):
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO Userlogs (user_email, action) VALUES (%s, %s)", (user_email, action))
+        conn.commit()
+        conn.close()
+     except Exception as e:
+        logging.error(f"Error logging action for user {user_email}: {e}")
+
 
 
 
