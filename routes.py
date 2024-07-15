@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models import fetch_email, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
 from forms import RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
@@ -14,11 +14,10 @@ import time
 from datetime import datetime
 import uuid
 import logging
-import secrets
-from functools import wraps
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -27,13 +26,13 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated_function
+
 def register_routes(app, oauth):
     # Login route
     @app.route("/", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
             store = fetch_users()
-            print(store)
             token = request.form.get('cf-turnstile-response')
             ip = request.remote_addr
 
@@ -53,9 +52,9 @@ def register_routes(app, oauth):
             email = request.form["email"]
             password = request.form["password"]
             user = next((x for x in store if x[0] == email), None)
+
             if user and check_password(user[1], password):
                 session["login_email"] = email
-                
                 return redirect(url_for('two_step'))
             else:
                 flash("Invalid email or password", "error")
@@ -64,11 +63,12 @@ def register_routes(app, oauth):
 
     # Home route
     @app.route("/home")
+    @login_required
     def home():
         return render_template("home.html", session=session.get("user"),
                                pretty=json.dumps(session.get("user"), indent=4))
 
-# Google OAuth routes
+    # Google OAuth routes
 # Google OAuth routes
     @app.route("/signin-google")
     def googleCallback():
@@ -301,7 +301,7 @@ def register_routes(app, oauth):
             flash("Password reset successful. Please log in.", "success")
             return redirect(url_for('login'))
 
-        return render_template("forgot_password.html", form=form)
+        return render_template("forgot_pass.html", form=form)
 
     @app.route("/email-otp", methods=["GET", "POST"])
     def mail_otp():
@@ -370,6 +370,7 @@ def register_routes(app, oauth):
      if profile:
         # Check if the user profile is complete (no null values)
         if all(value is not None for value in profile):
+            session["user"] = {"email": email} 
             return redirect(url_for("DashBoard"))
 
      form = UpdateProfileForm()
@@ -408,74 +409,29 @@ def register_routes(app, oauth):
             if any(value is None for value in updated_profile):
                 return render_template("profile.html", profile=updated_profile)
             else:
+                session["user"] = {"email": email} 
                 return redirect(url_for("DashBoard"))
         except Exception as e:
             logging.error(f"Error updating profile for email {email}: {e}")
             flash("An error occurred while updating the profile.", "error")
 
      return render_template("profile.html", profile=profile)
+    # Route to save device data
+    @app.route("/profile-content")
+    @login_required
+    def profile_content():
+     email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
+     if not email:
+        return jsonify({"error": "User email not found in session."}), 400
 
+     profile = fetch_user_profile(email)
+     if profile is None:
+        return jsonify({"error": "User profile not found."}), 404
+
+     return render_template("profile_content.html", profile=profile)
+
+
+
+   
 
         
-
-    #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
-    SECRET_TOKEN = "tR7Hs9Ky3Lm1Pq4Xw2Zb8Nf5Vj7Cd6"
-
-    def require_auth(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-         auth_header = request.headers.get('Authorization')
-         if not auth_header:
-            return jsonify({"error": "Authorization header is missing"}), 401
-         try:
-            auth_type, token = auth_header.split()
-            
-            if auth_type.lower() != 'bearer':
-                return jsonify({"error": "Bearer token required"}), 401
-            
-            # Use secrets.compare_digest for secure string comparison
-            if not secrets.compare_digest(token, SECRET_TOKEN):
-                return jsonify({"error": "Invalid token"}), 401
-         except ValueError:
-            return jsonify({"error": "Invalid Authorization header format"}), 401
-         return f(*args, **kwargs)
-        return decorated
-    
-
-    @app.route('/protected')
-    @require_auth
-    def protected():
-        return jsonify({"message": "This is a protected route"})
-        # If authentication is successful, proceed to execute the decorated function
-        return f(*args, **kwargs)
-        return decorated
-
-
-    @app.route("/device", methods=['GET'])
-    @require_auth
-    def handle_device():
-        device_id = request.args.get('device_id')
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        if not device_id:
-            return jsonify({"error": "No device ID provided"}), 400
-        
-        try:
-            # Use parameterized queries to prevent SQL injection
-            cur.execute("UPDATE token_device SET Device_id = %s WHERE Device_id IS NULL", (device_id,))
-            conn.commit()
-            
-            cur.execute("SELECT Token_id FROM token_device WHERE Device_id = %s", (device_id,))
-            token = cur.fetchall()
-            
-            token_data = jsonify({"device_id": device_id, "token": token}), 200
-            return token_data
-        
-        except Exception as e:
-            conn.rollback()
-            return jsonify({"error": str(e)}), 500
-        
-        finally:
-            cur.close()
-            conn.close() 
