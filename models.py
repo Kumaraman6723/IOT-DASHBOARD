@@ -21,7 +21,7 @@ def fetch_email():
 def recover_passkey(new_password, email):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE auth SET Password = %s WHERE Email = %s", (new_password, email))
+    cur.execute("UPDATE user_profiles SET Password = %s WHERE Email = %s", (new_password, email))
     conn.commit()
     conn.close()
 
