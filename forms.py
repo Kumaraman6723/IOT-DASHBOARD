@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, DateField, SubmitField, TelField
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField,validators
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, ValidationError
 import re
 
@@ -11,7 +11,10 @@ def validate_contact(form, field):
 
 
 class RegisterForm(FlaskForm):
-
+    username = StringField('Username', [
+        validators.DataRequired(),
+        validators.Length(min=4, max=25)
+    ])
     first_name = StringField("First Name", validators=[DataRequired()])
     last_name = StringField("Last Name")
     email = StringField("Email", validators=[DataRequired(), Email()])
