@@ -70,7 +70,6 @@ def register_routes(app, oauth):
         return render_template("home.html", session=session.get("user"),
                                pretty=json.dumps(session.get("user"), indent=4))
 
-    # Google OAuth routes
     @app.route("/signin-google")
     def googleCallback():
      try:
@@ -123,6 +122,7 @@ def register_routes(app, oauth):
         existing_contact = existing_user[6]  # Assuming contact is the 6th field in the user_profiles table
         if all(value is not None for value in existing_user):
             conn.close()
+            session["login_email"] = email  # Save email to session
             return redirect(url_for("DashBoard"))
 
         cur.execute(
@@ -140,8 +140,10 @@ def register_routes(app, oauth):
 
     # Save email in the session
      session["login_email"] = email
+     session["user_email"] = email  # Save user_info.email to session
 
      return redirect(url_for("profile"))
+
 
 
 
