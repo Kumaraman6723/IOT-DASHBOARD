@@ -14,7 +14,9 @@ import time
 from datetime import datetime
 import uuid
 import logging
-
+import random
+import string
+from werkzeug.security import generate_password_hash
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -69,6 +71,22 @@ def register_routes(app, oauth):
     def home():
         return render_template("home.html", session=session.get("user"),
                                pretty=json.dumps(session.get("user"), indent=4))
+        
+    def generate_hashed_password():
+     random_password = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=12))
+     hashed_password = generate_password_hash(random_password, method='pbkdf2:sha256', salt_length=8)
+     return hashed_password, random_password
+
+    def generate_username():
+     while True:
+        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT username FROM user_profiles WHERE username=%s", (username,))
+        existing_username = cur.fetchone()
+        conn.close()
+        if not existing_username:
+            return username
 
     @app.route("/signin-google")
     def googleCallback():
@@ -100,6 +118,10 @@ def register_routes(app, oauth):
      last_name = user_info.get("family_name", "")
      profile_id = str(uuid.uuid4())
 
+    # Generate random username and hashed password
+     username = generate_username()
+     hashed_password, _ = generate_hashed_password()
+
     # Extract birthday and gender
      birthday = None
      gender = None
@@ -119,21 +141,23 @@ def register_routes(app, oauth):
 
      if existing_user:
         # Use the existing contact if it exists
-        existing_contact = existing_user[6]  # Assuming contact is the 6th field in the user_profiles table
+        existing_contact = existing_user[7]  # Assuming contact is the 6th field in the user_profiles table
         if all(value is not None for value in existing_user):
             conn.close()
             session["login_email"] = email  # Save email to session
             return redirect(url_for("DashBoard"))
 
+        logging.debug(f"Updating user with values: {first_name} {last_name}, {birthday}, {gender}, {existing_contact}, {email}")
         cur.execute(
-            "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s WHERE email=%s",
+            "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=NOW() WHERE email=%s",
             (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
         )
      else:
         # Insert a new user with contact set to None
+        logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
         cur.execute(
-            "INSERT INTO user_profiles (email, password, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (email, profile_id, f"{first_name} {last_name}", birthday, gender, None, profile_id)
+            "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())",
+            (email, username, hashed_password, f"{first_name} {last_name}", birthday, gender, None, profile_id)
         )
      conn.commit()
      conn.close()
@@ -143,7 +167,6 @@ def register_routes(app, oauth):
      session["user_email"] = email  # Save user_info.email to session
 
      return redirect(url_for("profile"))
-
 
 
 
@@ -164,31 +187,48 @@ def register_routes(app, oauth):
      session.clear()
      return redirect(url_for("login"))
 
+   
     @app.route("/register", methods=["GET", "POST"])
     def register():
         form = RegisterForm()
         if form.validate_on_submit():
-            hash_and_salted_password = generate_password_hash(
-                form.password.data, method='pbkdf2:sha256', salt_length=8)
+            username = form.username.data
+            email = form.email.data
+            hash_and_salted_password = generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=8)
             
-            profile_id = str(uuid.uuid4())  # Generate a unique profile ID
-
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # Check if the username is already taken
+            cur.execute("SELECT COUNT(*) FROM user_profiles WHERE username = %s", (username,))
+            if cur.fetchone()[0] > 0:
+                flash("This username is already taken. Please choose a different one.", "danger")
+                conn.close()
+                return render_template("register.html", form=form)
+            
+            # Check if the email is already registered
+            cur.execute("SELECT COUNT(*) FROM user_profiles WHERE email = %s", (email,))
+            if cur.fetchone()[0] > 0:
+                flash("This email is already registered. Please use a different email.", "danger")
+                conn.close()
+                return render_template("register.html", form=form)
+            
+            profile_id = str(uuid.uuid4())
             session.update({
+                "username": username,
                 "first_name": form.first_name.data,
                 "last_name": form.last_name.data,
-                "email": form.email.data,
+                "email": email,
                 "password": hash_and_salted_password,
                 "contact": form.contact.data,
                 "profile_id": profile_id
             })
-
-            if session["email"] in fetch_email():
-                flash("This email is already registered. Please use a different email.", "danger")
-            else:
-                log_action(session["email"], "User registered")
-                return redirect(url_for("mail_otp"))
-
+            
+            log_action(email, "User registered")
+            return redirect(url_for("mail_otp"))
+        
         return render_template("register.html", form=form)
+
 
     # Password verification route
     @app.route("/verification", methods=["GET", "POST"])
@@ -336,8 +376,8 @@ def register_routes(app, oauth):
                 cur = conn.cursor()
               
                 cur.execute(
-                    "INSERT INTO user_profiles (email,password,name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s,%s)",
-                    (session["email"],session["password"] ,f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
+                    "INSERT INTO user_profiles (email,username,password,name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s,%s)",
+                    (session["email"],session["username"],session["password"] ,f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
                 )
                 conn.commit()
                 conn.close()
@@ -392,20 +432,22 @@ def register_routes(app, oauth):
             cur.execute(
                 """
                 UPDATE user_profiles SET
+                    username=%s,
                     name = %s,
                     birthday = %s,
                     gender = %s,
                     contact = %s,
-                    company_name = %s,
+                    organization_name = %s,
                     position = %s
                 WHERE email = %s
                 """,
                 (
+                    request.form.get("username"),
                     request.form.get("name"),
                     request.form.get("birthday"),
                     request.form.get("gender"),
                     request.form.get("contact"),
-                    request.form.get("orgName"),
+                    request.form.get("organization_name"),
                     request.form.get("position"),
                     email
                 )
@@ -458,7 +500,7 @@ def register_routes(app, oauth):
                         birthday = %s,
                         gender = %s,
                         contact = %s,
-                        company_name = %s,
+                        organization_name = %s,
                         position = %s
                     WHERE email = %s
                     """,
@@ -467,7 +509,7 @@ def register_routes(app, oauth):
                         request.form.get("birthday"),
                         request.form.get("gender"),
                         request.form.get("contact"),
-                        request.form.get("orgName"),
+                        request.form.get("organization_name"),
                         request.form.get("position"),
                         email
                     )
@@ -498,8 +540,6 @@ def register_routes(app, oauth):
      return render_template("profile_content.html", profile=profile, form=form)
 
 
-
-
     #log function
     def log_action(user_email, action):
      try:
@@ -510,6 +550,7 @@ def register_routes(app, oauth):
         conn.close()
      except Exception as e:
         logging.error(f"Error logging action for user {user_email}: {e}")
+
 
 
 
