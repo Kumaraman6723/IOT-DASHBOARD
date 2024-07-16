@@ -31,7 +31,6 @@ def login_required(f):
 
 def register_routes(app, oauth):
     # Login route
-    # Login route
     @app.route("/", methods=["GET", "POST"])
     def login():
      if request.method == "POST":
@@ -165,7 +164,7 @@ def register_routes(app, oauth):
     # Save email in the session
      session["login_email"] = email
      session["user_email"] = email  # Save user_info.email to session
-
+     log_action(email, "User logged In")
      return redirect(url_for("profile"))
 
 
@@ -178,7 +177,7 @@ def register_routes(app, oauth):
     # Logout route
     @app.route("/logout")
     def logout():
-     email = session.get("user", {}).get("email", "Unknown user")
+     email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
      if "user" in session:
         token = session["user"].get("access_token")
         if token:
@@ -355,39 +354,40 @@ def register_routes(app, oauth):
 
     @app.route("/email-otp", methods=["GET", "POST"])
     def mail_otp():
-        form = OTPForm()
-        email = session["email"]
+     form = OTPForm()
+     email = session["email"]
+ 
+     if request.method == "GET" or (request.method == "POST" and 'resend_otp' in request.form):
+        if not session.get('OTP_SENT', False) or is_otp_expired() or 'resend_otp' in request.form:
+            send_new_otp(email)
+            session['OTP_SENT'] = True
+            if request.method == "POST":
+                return "", 204  # Return empty response for AJAX request
 
-        if request.method == "GET" or (request.method == "POST" and 'resend_otp' in request.form):
-            if not session.get('OTP_SENT', False) or is_otp_expired() or 'resend_otp' in request.form:
-                send_new_otp(email)
-                session['OTP_SENT'] = True
-                if request.method == "POST":
-                    return "", 204  # Return empty response for AJAX request
+     if request.method == "POST" and 'resend_otp' not in request.form:
+        otp_input = request.form["otp"]
+        if is_otp_expired():
+            flash("OTP has expired. Please try again", "danger")
+            return redirect(url_for("register"))
+        elif otp_input == session.get("otp"):
+            # Save user data to database
+            conn = get_db_connection()
+            cur = conn.cursor()
+          
+            cur.execute(
+                "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (session["email"], session["username"], session["password"], f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
+            )
+            conn.commit()
+            conn.close()
+            session.clear()
+            flash("Registration successful! Please log in.", "success")
+            return redirect(url_for("login"))
+        else:
+            flash("Incorrect OTP", "danger")
 
-        if request.method == "POST" and 'resend_otp' not in request.form:
-            otp_input = request.form["otp"]
-            if is_otp_expired():
-                flash("OTP has expired. Please try again", "danger")
-                return redirect(url_for("register"))
-            elif otp_input == session.get("otp"):
-                # Save user data to database
-                conn = get_db_connection()
-                cur = conn.cursor()
-              
-                cur.execute(
-                    "INSERT INTO user_profiles (email,username,password,name, birthday, gender, contact, profile_id) VALUES (%s, %s, %s, %s, %s, %s,%s)",
-                    (session["email"],session["username"],session["password"] ,f"{session['first_name']} {session['last_name']}", None, None, session["contact"], session["profile_id"])
-                )
-                conn.commit()
-                conn.close()
-                session.clear()
-                flash("Registration successful! Please log in.", "success")
-                return redirect(url_for("login"))
-            else:
-                flash("Incorrect OTP", "danger")
+     return render_template("email_verify.html", form=form)
 
-        return render_template("email_verify.html", form=form)
 
     def fetch_user_profile(email):
      logging.debug(f"Fetching profile for email: {email}")
@@ -477,65 +477,64 @@ def register_routes(app, oauth):
     def profile_content():
      email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
      if not email:
-        logging.error("User email not found in session.")
-        return jsonify({"error": "User email not found in session."}), 400
+        flash("User email not found in session.", "error")
+        
 
      profile = fetch_user_profile(email)
      if profile is None:
-        logging.error(f"User profile not found for email: {email}")
-        return jsonify({"error": "User profile not found."}), 404
+        flash("User profile not found.", "error")
+        
+
+     if profile:
+        # Check if the user profile is complete (no null values)
+        if all(value is not None for value in profile):
+            session["user"] = {"email": email} 
+            
 
      form = UpdateProfileForm()
 
      if request.method == "POST":
-        if form.validate_on_submit():
-            try:
-                conn = get_db_connection()
-                cur = conn.cursor()
-                logging.info(f"Updating profile for email: {email} with data: {request.form}")
-                cur.execute(
-                    """
-                    UPDATE user_profiles SET
-                        name = %s,
-                        birthday = %s,
-                        gender = %s,
-                        contact = %s,
-                        organization_name = %s,
-                        position = %s
-                    WHERE email = %s
-                    """,
-                    (
-                        request.form.get("name"),
-                        request.form.get("birthday"),
-                        request.form.get("gender"),
-                        request.form.get("contact"),
-                        request.form.get("organization_name"),
-                        request.form.get("position"),
-                        email
-                    )
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE user_profiles SET
+                    username=%s,
+                    name = %s,
+                    birthday = %s,
+                    gender = %s,
+                    contact = %s,
+                    organization_name = %s,
+                    position = %s
+                WHERE email = %s
+                """,
+                (
+                    request.form.get("username"),
+                    request.form.get("name"),
+                    request.form.get("birthday"),
+                    request.form.get("gender"),
+                    request.form.get("contact"),
+                    request.form.get("organization_name"),
+                    request.form.get("position"),
+                    email
                 )
-                conn.commit()
-                conn.close()
-                log_action(email, "Profile updated")
-                flash("Profile updated successfully.", "success")
-
-                # Update the session with the updated profile data
-                session["user"] = fetch_user_profile(email)
-                logging.info(f"Session updated with new profile data for email: {email}")
-
-                # Check for null values after update
-                updated_profile = fetch_user_profile(email)
-                if any(value is None for value in updated_profile.values()):
-                    logging.warning(f"Null values found in updated profile for email: {email}")
-                    return render_template("profile_content.html", profile=updated_profile, form=form)
-                else:
-                    session["user"] = {"email": email}
-                    return redirect(url_for("DashBoard"))
-            except Exception as e:
-                logging.error(f"Error updating profile for email {email}: {e}")
-                flash("An error occurred while updating the profile.", "error")
-        else:
-            logging.warning(f"Form validation failed for email: {email}. Errors: {form.errors}")
+            )
+            conn.commit()
+            conn.close()
+            log_action(email, "Profile updated")
+            flash("Profile updated successfully.", "success")
+            
+            # Check for null values after update
+            updated_profile = fetch_user_profile(email)
+            if any(value is None for value in updated_profile):
+                return render_template("profile_content.html", profile=updated_profile)
+            else:
+                session["user"] = {"email": email} 
+                return redirect(url_for("DashBoard"))
+        except Exception as e:
+            logging.error(f"Error updating profile for email {email}: {e}")
+            flash("An error occurred while updating the profile.", "error")
 
      return render_template("profile_content.html", profile=profile, form=form)
 
