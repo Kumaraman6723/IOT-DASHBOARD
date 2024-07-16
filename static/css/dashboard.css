@@ -680,3 +680,117 @@ th {
   height: 30px;
   border-radius: 50%;
 }
+/* Existing dark mode styles */
+body.dark {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+body.dark .sidebar,
+body.dark .content nav,
+body.dark .content main {
+  background-color: #333;
+  color: #e0e0e0;
+}
+body.dark .sidebar .side-menu li a {
+  color: #e0e0e0;
+}
+body.dark .sidebar .side-menu li.active a {
+  background-color: #444;
+}
+body.dark .sidebar .side-menu li a:hover {
+  background-color: #444;
+}
+body.dark .content-section h2 {
+  color: #e0e0e0;
+}
+body.dark .device-counter button,
+body.dark .device-counter span {
+  background-color: #444;
+  color: #e0e0e0;
+}
+body.dark .table-container {
+  background-color: #333;
+}
+body.dark table {
+  border-color: #555;
+}
+body.dark th,
+body.dark td {
+  background-color: #444;
+  color: #e0e0e0;
+}
+body.dark th {
+  background-color: #555;
+}
+body.dark .notif-content {
+  background-color: #333;
+  color: #e0e0e0;
+}
+body.dark .notif-content ul li {
+  border-bottom-color: #555;
+}
+body.dark .notif-content ul li:hover {
+  background-color: #444;
+}
+
+/* Add new styles for add-device and view-device-content sections */
+body.dark #add-device,
+body.dark #view-device-content {
+  background-color: #333;
+  color: #e0e0e0;
+}
+
+body.dark #add-device label,
+body.dark #view-device-content label {
+  color: #e0e0e0;
+}
+
+body.dark #add-device input,
+body.dark #view-device-content input,
+body.dark #add-device select {
+  background-color: #444;
+  color: #e0e0e0;
+  border: 1px solid #555;
+}
+
+body.dark #add-device button,
+body.dark #view-device-content button {
+  background-color: #555;
+  color: #e0e0e0;
+  border: none;
+  cursor: pointer;
+}
+
+body.dark #add-device button:hover,
+body.dark #view-device-content button:hover {
+  background-color: #666;
+}
+
+/* Ensure the form fields and buttons are styled correctly */
+#add-device label,
+#view-device-content label {
+  display: block;
+  margin-top: 10px;
+}
+
+#add-device input,
+#view-device-content input,
+#add-device select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+#add-device button,
+#view-device-content button {
+  padding: 10px 15px;
+  margin-top: 10px;
+  border-radius: 4px;
+}
+
+#view-device-content {
+  padding: 20px;
+}
