@@ -478,18 +478,17 @@ def register_routes(app, oauth):
      email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
      if not email:
         flash("User email not found in session.", "error")
-        
+        return redirect(url_for("login"))
 
      profile = fetch_user_profile(email)
      if profile is None:
         flash("User profile not found.", "error")
-        
+        return redirect(url_for("login"))
 
      if profile:
         # Check if the user profile is complete (no null values)
         if all(value is not None for value in profile):
             session["user"] = {"email": email} 
-            
 
      form = UpdateProfileForm()
 
@@ -528,7 +527,7 @@ def register_routes(app, oauth):
             # Check for null values after update
             updated_profile = fetch_user_profile(email)
             if any(value is None for value in updated_profile):
-                return render_template("profile_content.html", profile=updated_profile)
+                return render_template("profile_content.html", profile=updated_profile, form=form)
             else:
                 session["user"] = {"email": email} 
                 return redirect(url_for("DashBoard"))
@@ -537,6 +536,8 @@ def register_routes(app, oauth):
             flash("An error occurred while updating the profile.", "error")
 
      return render_template("profile_content.html", profile=profile, form=form)
+
+
 
 
     #log function
