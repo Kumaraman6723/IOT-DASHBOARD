@@ -65,10 +65,38 @@ class ForgetPass(FlaskForm):
         submit = SubmitField("Change Password")
         
 class UpdateProfileForm(FlaskForm):
-    first_name = StringField('First Name', validators=[DataRequired()])
-    last_name = StringField('Last Name', validators=[DataRequired()])
-    birthday = DateField('Birthday', validators=[DataRequired()])
-    gender = SelectField('Gender', choices=[('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')], validators=[DataRequired()])
-    contact = TelField('Contact Number', validators=[DataRequired(), Length(min=10, max=10)])
-    company_name = StringField('Company Name', validators=[DataRequired()])
-    position = StringField('Position', validators=[DataRequired()])
+    username = StringField('Username', validators=[
+        DataRequired(message="Username is required"),
+        Length(min=2, max=20, message="Username must be between 2 and 20 characters")
+    ])
+    email = StringField('Email', validators=[
+        DataRequired(message="Email is required"),
+        Email(message="Enter a valid email address")
+    ])
+    name = StringField('Full Name', validators=[
+        DataRequired(message="Name is required"),
+        Length(max=100, message="Name must be 100 characters or fewer")
+    ])
+    birthday = DateField('Birthday', format='%Y-%m-%d', validators=[
+        DataRequired(message="Birthday is required"),
+        Regexp(regex=r'\d{4}-\d{2}-\d{2}', message="Date must be in YYYY-MM-DD format")
+    ])
+    gender = SelectField('Gender', choices=[
+        ('', 'Select Gender'),
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other')
+    ], validators=[DataRequired(message="Gender is required")])
+    contact = StringField('Contact Number', validators=[
+        DataRequired(message="Contact number is required"),
+        Length(max=20, message="Contact number must be 20 characters or fewer")
+    ])
+    organization_name = StringField('Organization Name', validators=[
+        DataRequired(message="Organization name is required"),
+        Length(max=100, message="Organization name must be 100 characters or fewer")
+    ])
+    position = StringField('Position', validators=[
+        DataRequired(message="Position is required"),
+        Length(max=100, message="Position must be 100 characters or fewer")
+    ])
+    submit = SubmitField('Update Profile')
