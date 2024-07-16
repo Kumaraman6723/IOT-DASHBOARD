@@ -12,7 +12,7 @@
     <title>Temp Dashboard</title>
     <style>
       /* Add your custom CSS here */
-      <style>
+
       /* Add your custom CSS here */
       body.dark {
         background-color: #121212;
@@ -174,6 +174,16 @@
             ><i class="bx bx-devices"></i>Request Device Data</a
           >
         </li>
+        <li>
+          <a href="#" id="add-device-link"
+            ><i class="bx bx-devices"></i>Add Device
+          </a>
+        </li>
+        <li>
+          <a href="#" id="get-device-link"
+            ><i class="bx bx-devices"></i>Get Device Data</a
+          >
+        </li>
       </ul>
       <ul class="side-menu">
         <li>
@@ -267,6 +277,52 @@
           <button id="request-device" onclick="requestDeviceData()">
             Request
           </button>
+        </div>
+        <div id="add-device" class="content-section">
+          <h2>Add Devices</h2>
+          <form id="device-form">
+            <label for="entityName">Entity Name</label>
+            <input type="text" id="entityName" name="entityName" required />
+            <label for="deviceIMEI">Device IMEI</label>
+            <input type="text" id="deviceIMEI" name="deviceIMEI" required />
+            <label for="simICCId">SIM ICC ID</label>
+            <input type="text" id="simICCId" name="simICCId" required />
+            <label for="batterySLNo">Battery SL No</label>
+            <input type="text" id="batterySLNo" name="batterySLNo" required />
+            <label for="panelSLNo">Panel SL No</label>
+            <input type="text" id="panelSLNo" name="panelSLNo" required />
+            <label for="luminarySLNo">Luminary SL No</label>
+            <input type="text" id="luminarySLNo" name="luminarySLNo" required />
+            <label for="mobileNo">Mobile No</label>
+            <input type="text" id="mobileNo" name="mobileNo" required />
+            <label for="district">District</label>
+            <input type="text" id="district" name="district" required />
+            <label for="panchayat">Panchayat</label>
+            <input type="text" id="panchayat" name="panchayat" required />
+            <label for="block">Block</label>
+            <input type="text" id="block" name="block" required />
+            <label for="wardNo">Ward No</label>
+            <input type="text" id="wardNo" name="wardNo" required />
+            <label for="poleNo">Pole No</label>
+            <input type="text" id="poleNo" name="poleNo" required />
+            <label for="active">Active</label>
+            <select id="active" name="active" required>
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+            <label for="installationDate">Installation Date</label>
+            <input
+              type="date"
+              id="installationDate"
+              name="installationDate"
+              required
+            />
+            <button type="submit">Submit</button>
+          </form>
+        </div>
+        <div id="view-device-content" class="content-section">
+          <h2>View Devices</h2>
+          <div id="device-list"></div>
         </div>
       </main>
     </div>
@@ -522,7 +578,16 @@
           .addEventListener("click", function () {
             showSection("device-content");
           });
-
+        document
+          .getElementById("add-device-link")
+          .addEventListener("click", function () {
+            showSection("add-device");
+          });
+        document
+          .getElementById("get-device-link")
+          .addEventListener("click", function () {
+            showSection("view-device-content");
+          });
         function showSection(sectionId) {
           const sections = document.querySelectorAll(".content-section");
           sections.forEach((section) => {
