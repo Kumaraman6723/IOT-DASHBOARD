@@ -33,49 +33,68 @@ def login_required(f):
 
 def register_routes(app, oauth):
     # Login route
-    @app.route("/", methods=["GET", "POST"])
+      # Login route
+    @app.route("/login", methods=["GET", "POST"])
     def login():
-     if request.method == "POST":
-        store = fetch_users()
-        token = request.form.get('cf-turnstile-response')
-        ip = request.remote_addr
+        if request.method == "POST":
+            store = fetch_users()
+            token = request.form.get('cf-turnstile-response')
+            ip = request.remote_addr
 
-        # Verify Cloudflare Turnstile
-        form_data = {
-            'secret': SECRET_KEY,
-            'response': token,
-            'remoteip': ip
-        }
-        response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
-        outcome = response.json()
+            # Verify Cloudflare Turnstile
+            form_data = {
+                'secret': SECRET_KEY,
+                'response': token,
+                'remoteip': ip
+            }
+            response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
+            outcome = response.json()
 
-      #  if not outcome['success']:
-      #      flash('The provided Turnstile token was not valid!', 'error')
-      #      return redirect(url_for('login'))
+            if not outcome['success']:
+                 flash('The provided Turnstile token was not valid!', 'error')
+                 return redirect(url_for('login'))
 
-        email = request.form["user"]
-        password = request.form["password"]
-        user = next((x for x in store if x[0] == email or x[2] == email), None)
+            email = request.form["user"]
+            password = request.form["password"]
 
-
-        if user and check_password(user[1], password):
-            mail_fetch = fetch_email_from_user(email)
-            print(mail_fetch)
-            if mail_fetch is not None :
-               print(mail_fetch)
-               session["user"] = {"email": mail_fetch}
-               session["login_email"] = mail_fetch
-               log_action(email, "User logged in")
-               return redirect(url_for('two_step'))
+            # Check if it's the admin login
+            admin_email = "aman22csu266@ncuindia.edu"
+            admin_id = "admin12324"
+            admin_password = "Jadoo@12"
+            if email == admin_id or email == admin_email:
+                if password == admin_password:
+                    session["user"] = {"email": admin_email}
+                    session["login_email"] = admin_email
+                    log_action(admin_email, "Admin logged in")
+                    return redirect(url_for('admindashboard'))
+                else:
+                    flash("Invalid admin email or password", "error")
             else:
-                session["user"] = {"email": email}
-                session["login_email"] = email
-                log_action(email, "User logged in")
-                return redirect(url_for('two_step'))
-        else:
-            flash("Invalid email or password", "error")
+                user = next((x for x in store if x[0] == email or x[2] == email), None)
 
-     return render_template("login.html", site_key=SITE_KEY)
+                if user and check_password(user[1], password):
+                    mail_fetch = fetch_email_from_user(email)
+                    print(mail_fetch)
+                    if mail_fetch is not None:
+                        print(mail_fetch)
+                        session["user"] = {"email": mail_fetch}
+                        session["login_email"] = mail_fetch
+                        log_action(email, "User logged in")
+                        return redirect(url_for('two_step'))
+                    else:
+                        session["user"] = {"email": email}
+                        session["login_email"] = email
+                        log_action(email, "User logged in")
+                        return redirect(url_for('two_step'))
+                else:
+                    flash("Invalid email or password", "error")
+
+        return render_template("login.html", site_key=SITE_KEY)
+    #admindashboard route
+    @app.route("/admindashboard")
+    def admindashboard():
+    # You can add logic here to display relevant admin data
+     return render_template("Admindashboard.html")
     # Home route
     @app.route("/home")
     @login_required
@@ -266,7 +285,7 @@ def register_routes(app, oauth):
         return render_template("verify_pass.html", form=form)
 
     # Dashboard route
-    @app.route("/DashBoard", methods=["GET", "POST"])
+    @app.route("/", methods=["GET", "POST"])
     @login_required
     def DashBoard():
         return render_template("DashBoard.html")
