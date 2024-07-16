@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from models import fetch_email, recover_passkey, fetch_users, get_db_connection
+from models import fetch_email, fetch_email_from_user, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
 from forms import RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
 from utils import otpmaker, check_password
@@ -18,6 +18,7 @@ import random
 import string
 from werkzeug.security import generate_password_hash
 import secrets
+import requests
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,7 +33,7 @@ def login_required(f):
 
 def register_routes(app, oauth):
     # Login route
-    @app.route("/login", methods=["GET", "POST"])
+    @app.route("/", methods=["GET", "POST"])
     def login():
      if request.method == "POST":
         store = fetch_users()
@@ -48,19 +49,29 @@ def register_routes(app, oauth):
         response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
         outcome = response.json()
 
-        if not outcome['success']:
-            flash('The provided Turnstile token was not valid!', 'error')
-            return redirect(url_for('login'))
+      #  if not outcome['success']:
+      #      flash('The provided Turnstile token was not valid!', 'error')
+      #      return redirect(url_for('login'))
 
-        email = request.form["email"]
+        email = request.form["user"]
         password = request.form["password"]
-        user = next((x for x in store if x[0] == email), None)
+        user = next((x for x in store if x[0] == email or x[2] == email), None)
+
 
         if user and check_password(user[1], password):
-            session["login_email"] = email
-            session["user"] = {"email": email}
-            log_action(email, "User logged in")
-            return redirect(url_for('two_step'))
+            mail_fetch = fetch_email_from_user(email)
+            print(mail_fetch)
+            if mail_fetch is not None :
+               print(mail_fetch)
+               session["user"] = {"email": mail_fetch}
+               session["login_email"] = mail_fetch
+               log_action(email, "User logged in")
+               return redirect(url_for('two_step'))
+            else:
+                session["user"] = {"email": email}
+                session["login_email"] = email
+                log_action(email, "User logged in")
+                return redirect(url_for('two_step'))
         else:
             flash("Invalid email or password", "error")
 
@@ -140,25 +151,30 @@ def register_routes(app, oauth):
      existing_user = cur.fetchone()
 
      if existing_user:
-        # Use the existing contact if it exists
-        existing_contact = existing_user[7]  # Assuming contact is the 6th field in the user_profiles table
-        if all(value is not None for value in existing_user):
-            conn.close()
-            session["login_email"] = email  # Save email to session
-            return redirect(url_for("DashBoard"))
+            # Use the existing contact if it exists
+            existing_contact = existing_user[7]  # Assuming contact is the 7th field in the user_profiles table
+            if all(value is not None for value in existing_user):
+                conn.close()
+                session["login_email"] = email  # Save email to session
+                log_action(email, "User logged in with Google")
+                send_webhook("profile_updated", {"email": email, "action": "User logged in with Google"})
+                return redirect(url_for("DashBoard"))
 
-        logging.debug(f"Updating user with values: {first_name} {last_name}, {birthday}, {gender}, {existing_contact}, {email}")
-        cur.execute(
-            "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=NOW() WHERE email=%s",
-            (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
-        )
+            logging.debug(f"Updating user with values: {first_name} {last_name}, {birthday}, {gender}, {existing_contact}, {email}")
+            cur.execute(
+                "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=NOW() WHERE email=%s",
+                (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
+            )
+            send_webhook("profile_updated", {"email": email, "action": "User updated profile with Google"})
      else:
-        # Insert a new user with contact set to None
-        logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
-        cur.execute(
-            "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())",
-            (email, username, hashed_password, f"{first_name} {last_name}", birthday, gender, None, profile_id)
-        )
+            # Insert a new user with contact set to None
+            logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
+            cur.execute(
+                "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())",
+                (email, username, hashed_password, f"{first_name} {last_name}", birthday, gender, None, profile_id)
+            )
+            send_webhook("profile_created", {"email": email, "action": "User registered with Google"})
+  
      conn.commit()
      conn.close()
 
@@ -225,6 +241,13 @@ def register_routes(app, oauth):
             })
             
             log_action(email, "User registered")
+            send_webhook("profile_created", {
+            "email": email,
+            "username": username,
+            "first_name": form.first_name.data,
+            "last_name": form.last_name.data,
+            "contact": form.contact.data
+             })
             return redirect(url_for("mail_otp"))
         
         return render_template("register.html", form=form)
@@ -243,7 +266,7 @@ def register_routes(app, oauth):
         return render_template("verify_pass.html", form=form)
 
     # Dashboard route
-    @app.route("/", methods=["GET", "POST"])
+    @app.route("/DashBoard", methods=["GET", "POST"])
     @login_required
     def DashBoard():
         return render_template("DashBoard.html")
@@ -464,6 +487,16 @@ def register_routes(app, oauth):
             conn.commit()
             conn.close()
             log_action(email, "Profile updated")
+            send_webhook("profile_updated", {
+                "email": email,
+                "username": username,
+                "name": request.form.get("name"),
+                "birthday": request.form.get("birthday"),
+                "gender": request.form.get("gender"),
+                "contact": request.form.get("contact"),
+                "organization_name": request.form.get("organization_name"),
+                "position": request.form.get("position")
+            })
             flash("Profile updated successfully.", "success")
             
             updated_profile = fetch_user_profile(email)
@@ -536,6 +569,16 @@ def register_routes(app, oauth):
             conn.commit()
             conn.close()
             log_action(email, "Profile updated")
+            send_webhook("profile_updated", {
+                "email": email,
+                "username": username,
+                "name": request.form.get("name"),
+                "birthday": request.form.get("birthday"),
+                "gender": request.form.get("gender"),
+                "contact": request.form.get("contact"),
+                "organization_name": request.form.get("organization_name"),
+                "position": request.form.get("position")
+            })
             flash("Profile updated successfully.", "success")
             
             updated_profile = fetch_user_profile(email)
@@ -552,6 +595,7 @@ def register_routes(app, oauth):
 
 
 
+
     #log function
     def log_action(user_email, action):
      try:
@@ -562,17 +606,62 @@ def register_routes(app, oauth):
         conn.close()
      except Exception as e:
         logging.error(f"Error logging action for user {user_email}: {e}")
-
-
-
-
-
-   
-
         
-
-
         
+        
+        
+    def send_webhook(event, data):
+     webhook_url = "http://127.0.0.1:5001/send-webhook"
+     payload = {
+        "event": event,
+        "data": data
+     }
+     headers = {
+        "Content-Type": "application/json"
+     }
+     try:
+        response = requests.post(webhook_url, data=json.dumps(payload), headers=headers)
+        response.raise_for_status()
+        logging.info(f"Webhook for {event} sent successfully.")
+     except requests.exceptions.RequestException as e:
+        logging.error(f"Error sending webhook for {event}: {e}")
+        
+        
+    @app.route('/send-webhook', methods=['GET', 'POST'])
+    def send_webhook_route():
+     try:
+        if request.method == 'POST':
+            request_data = request.get_json()
+            event = request_data.get('event')
+            data = request_data.get('data')
+
+        elif request.method == 'GET':
+            event = request.args.get('event')
+            data = request.args.get('data')
+
+            # Assuming data is passed as a JSON string in the query parameter
+            if data:
+                data = json.loads(data)
+
+        if not event or not data:
+            return jsonify({"error": "Event and data are required"}), 400
+
+        send_webhook(event, data)
+        return jsonify({"message": "Webhook sent successfully"}), 200
+
+     except Exception as e:
+        logging.error(f"Error processing webhook request: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+
+
+
+
+
+
+
+
+
 
     #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
     SECRET_TOKEN = "tR7Hs9Ky3Lm1Pq4Xw2Zb8Nf5Vj7Cd6"
