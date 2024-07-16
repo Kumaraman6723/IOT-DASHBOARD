@@ -610,48 +610,16 @@ def register_routes(app, oauth):
         
         
         
+  
+        
+        
     def send_webhook(event, data):
-     webhook_url = "http://127.0.0.1:5001/send-webhook"
-     payload = {
+     webhook_data = {
         "event": event,
         "data": data
      }
-     headers = {
-        "Content-Type": "application/json"
-     }
-     try:
-        response = requests.post(webhook_url, data=json.dumps(payload), headers=headers)
-        response.raise_for_status()
-        logging.info(f"Webhook for {event} sent successfully.")
-     except requests.exceptions.RequestException as e:
-        logging.error(f"Error sending webhook for {event}: {e}")
-        
-        
-    @app.route('/send-webhook', methods=['GET', 'POST'])
-    def send_webhook_route():
-     try:
-        if request.method == 'POST':
-            request_data = request.get_json()
-            event = request_data.get('event')
-            data = request_data.get('data')
-
-        elif request.method == 'GET':
-            event = request.args.get('event')
-            data = request.args.get('data')
-
-            # Assuming data is passed as a JSON string in the query parameter
-            if data:
-                data = json.loads(data)
-
-        if not event or not data:
-            return jsonify({"error": "Event and data are required"}), 400
-
-        send_webhook(event, data)
-        return jsonify({"message": "Webhook sent successfully"}), 200
-
-     except Exception as e:
-        logging.error(f"Error processing webhook request: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+     # Print the webhook data to the console
+     logging.info(f"Webhook triggered: {json.dumps(webhook_data, indent=4)}")
 
 
 
