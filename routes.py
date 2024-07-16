@@ -17,6 +17,7 @@ import logging
 import random
 import string
 from werkzeug.security import generate_password_hash
+import secrets
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -31,7 +32,7 @@ def login_required(f):
 
 def register_routes(app, oauth):
     # Login route
-    @app.route("/", methods=["GET", "POST"])
+    @app.route("/login", methods=["GET", "POST"])
     def login():
      if request.method == "POST":
         store = fetch_users()
@@ -242,7 +243,7 @@ def register_routes(app, oauth):
         return render_template("verify_pass.html", form=form)
 
     # Dashboard route
-    @app.route("/DashBoard", methods=["GET", "POST"])
+    @app.route("/", methods=["GET", "POST"])
     @login_required
     def DashBoard():
         return render_template("DashBoard.html")
@@ -418,7 +419,6 @@ def register_routes(app, oauth):
         return redirect(url_for("login"))
 
      if profile:
-        # Check if the user profile is complete (no null values)
         if all(value is not None for value in profile):
             session["user"] = {"email": email} 
             return redirect(url_for("DashBoard"))
@@ -426,9 +426,18 @@ def register_routes(app, oauth):
      form = UpdateProfileForm()
 
      if request.method == "POST":
+        username = request.form.get("username")
+        
+        # Check if the new username already exists in the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM user_profiles WHERE username = %s AND email != %s", (username, email))
+        if cur.fetchone()[0] > 0:
+            flash("This username is already taken. Please choose a different one.", "danger")
+            conn.close()
+            return render_template("profile.html", profile=profile, form=form)
+        
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
             cur.execute(
                 """
                 UPDATE user_profiles SET
@@ -442,7 +451,7 @@ def register_routes(app, oauth):
                 WHERE email = %s
                 """,
                 (
-                    request.form.get("username"),
+                    username,
                     request.form.get("name"),
                     request.form.get("birthday"),
                     request.form.get("gender"),
@@ -457,10 +466,9 @@ def register_routes(app, oauth):
             log_action(email, "Profile updated")
             flash("Profile updated successfully.", "success")
             
-            # Check for null values after update
             updated_profile = fetch_user_profile(email)
             if any(value is None for value in updated_profile):
-                return render_template("profile.html", profile=updated_profile)
+                return render_template("profile.html", profile=updated_profile, form=form)
             else:
                 session["user"] = {"email": email} 
                 return redirect(url_for("DashBoard"))
@@ -468,10 +476,9 @@ def register_routes(app, oauth):
             logging.error(f"Error updating profile for email {email}: {e}")
             flash("An error occurred while updating the profile.", "error")
 
-     return render_template("profile.html", profile=profile)
-     
-     
-     
+     return render_template("profile.html", profile=profile, form=form)
+
+
     @app.route("/profile-content", methods=["GET", "POST"])
     @login_required
     def profile_content():
@@ -486,16 +493,23 @@ def register_routes(app, oauth):
         return redirect(url_for("login"))
 
      if profile:
-        # Check if the user profile is complete (no null values)
         if all(value is not None for value in profile):
             session["user"] = {"email": email} 
 
      form = UpdateProfileForm()
 
      if request.method == "POST":
+        username = request.form.get("username")
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM user_profiles WHERE username = %s AND email != %s", (username, email))
+        if cur.fetchone()[0] > 0:
+            flash("This username is already taken. Please choose a different one.", "danger")
+            conn.close()
+            return render_template("profile_content.html", profile=profile, form=form)
+        
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
             cur.execute(
                 """
                 UPDATE user_profiles SET
@@ -509,7 +523,7 @@ def register_routes(app, oauth):
                 WHERE email = %s
                 """,
                 (
-                    request.form.get("username"),
+                    username,
                     request.form.get("name"),
                     request.form.get("birthday"),
                     request.form.get("gender"),
@@ -524,7 +538,6 @@ def register_routes(app, oauth):
             log_action(email, "Profile updated")
             flash("Profile updated successfully.", "success")
             
-            # Check for null values after update
             updated_profile = fetch_user_profile(email)
             if any(value is None for value in updated_profile):
                 return render_template("profile_content.html", profile=updated_profile, form=form)
@@ -536,7 +549,6 @@ def register_routes(app, oauth):
             flash("An error occurred while updating the profile.", "error")
 
      return render_template("profile_content.html", profile=profile, form=form)
-
 
 
 
@@ -558,3 +570,69 @@ def register_routes(app, oauth):
    
 
         
+
+
+        
+
+    #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
+    SECRET_TOKEN = "tR7Hs9Ky3Lm1Pq4Xw2Zb8Nf5Vj7Cd6"
+
+    def require_auth(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+         auth_header = request.headers.get('Authorization')
+         if not auth_header:
+            return jsonify({"error": "Authorization header is missing"}), 401
+         try:
+            auth_type, token = auth_header.split()
+            
+            if auth_type.lower() != 'bearer':
+                return jsonify({"error": "Bearer token required"}), 401
+            
+            # Use secrets.compare_digest for secure string comparison
+            if not secrets.compare_digest(token, SECRET_TOKEN):
+                return jsonify({"error": "Invalid token"}), 401
+         except ValueError:
+            return jsonify({"error": "Invalid Authorization header format"}), 401
+         return f(*args, **kwargs)
+        return decorated
+    
+
+    @app.route('/protected')
+    @require_auth
+    def protected():
+        return jsonify({"message": "This is a protected route"})
+        # If authentication is successful, proceed to execute the decorated function
+        return f(*args, **kwargs)
+        return decorated
+
+
+    @app.route("/device", methods=['GET'])
+    @require_auth
+    def handle_device():
+        device_id = request.args.get('device_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        if not device_id:
+            return jsonify({"error": "No device ID provided"}), 400
+        
+        try:
+            # Use parameterized queries to prevent SQL injection
+            cur.execute("UPDATE token_device SET Device_id = %s WHERE Device_id IS NULL", (device_id,))
+            conn.commit()
+            
+            cur.execute("SELECT Token_id FROM token_device WHERE Device_id = %s", (device_id,))
+            token = cur.fetchall()
+            
+            token_data = jsonify({"device_id": device_id, "token": token}), 200
+            return token_data
+        
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        
+        finally:
+            cur.close()
+            conn.close() 
+
