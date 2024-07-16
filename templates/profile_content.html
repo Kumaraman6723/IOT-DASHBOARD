@@ -6,8 +6,8 @@
                 <div class="card-header text-center bg-primary text-white">
                     <h1 class="mb-0">Personal Info</h1>
                 
-                    <form id="personalInfoForm" method="POST" action="{{ url_for('profile') }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <form id="personalInfoForm" method="POST" action="{{ url_for('profile_content') }}">
+                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                          <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" name="username" value="{{ profile[2] }}" required>
@@ -55,7 +55,7 @@
                             <input type="text" class="form-control" id="position" name="position" value="{{ profile[12] }}" required>
                         </div>
                        
-                       
+                      <button type="submit" class="btn btn-primary w-100">Update</button>
                     </form>
                 </div>
             </div>
