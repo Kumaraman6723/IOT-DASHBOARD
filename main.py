@@ -1,10 +1,13 @@
-from flask import Flask
+from flask import Flask,jsonify
 from flask_bootstrap import Bootstrap5
-from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from authlib.integrations.flask_client import OAuth
-from config import appConf, SITE_KEY ,SECRET_KEY
+from config import appConf
 from routes import register_routes
+from models import token_fn ,token_route
+from functools import wraps
+
+from collections import defaultdict
 
 
 app = Flask(__name__)
@@ -24,8 +27,16 @@ oauth.register(
     }
 )
 
+register_routes(app, oauth)
 
-register_routes(app,oauth)
+
+# Create routes dynamically
+for token in token_fn():
+    app.add_url_rule(f"/{token}",
+                     endpoint=f"token_route_{token}",
+                     view_func=csrf.exempt(token_route),
+                     methods=["GET", 'POST'])
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=appConf.get("FLASK_PORT"))
