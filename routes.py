@@ -185,7 +185,7 @@ def register_routes(app, oauth):
                 "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=NOW() WHERE email=%s",
                 (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
             )
-            send_webhook("profile_updated", {"email": email, "action": "User updated profile with Google"})
+            send_webhook("profile_updated", {"email": email, "action": "User logged in with Google"})
      else:
             # Insert a new user with contact set to None
             logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
@@ -633,14 +633,68 @@ def register_routes(app, oauth):
   
         
         
+    
     def send_webhook(event, data):
      webhook_data = {
         "event": event,
         "data": data
      }
-     # Print the webhook data to the console
+    # Print the webhook data to the console
      logging.info(f"Webhook triggered: {json.dumps(webhook_data, indent=4)}")
-     
+
+    # Get the email from the session
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        logging.error("User email not found in session.")
+        return
+
+    # Save the webhook data to the database
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO webhooks (email, event, data, created_at)
+            VALUES (%s, %s, %s, %s)
+        """, (email, event, json.dumps(data), datetime.now()))
+        conn.commit()
+        cur.close()
+        conn.close()
+        logging.info("Webhook data saved to the database successfully.")
+     except Exception as e:
+        logging.error(f"Error saving webhook data: {e}")
+    
+    @app.route('/webhooks', methods=['GET'])
+    def get_webhooks():
+     try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT email, event, data, created_at 
+            FROM webhooks
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        webhooks = []
+        for row in rows:
+            webhooks.append({
+                'email': row[0],
+                'event': row[1],
+                'data': json.loads(row[2]),
+                'created_at': row[3].isoformat()
+            })
+
+        return jsonify(webhooks)
+     except Exception as e:
+        logging.error(f"Error fetching webhooks: {e}")
+        return jsonify({'error': 'Failed to fetch webhooks'}), 500
 
 
 
