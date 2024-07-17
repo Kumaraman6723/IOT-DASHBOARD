@@ -34,7 +34,7 @@ def login_required(f):
 def register_routes(app, oauth):
     # Login route
       # Login route
-    @app.route("/login", methods=["GET", "POST"])
+    @app.route("/", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
             store = fetch_users()
@@ -286,7 +286,7 @@ def register_routes(app, oauth):
         return render_template("verify_pass.html", form=form)
 
     # Dashboard route
-    @app.route("/", methods=["GET", "POST"])
+    @app.route("/dashboard", methods=["GET", "POST"])
     @login_required
     def DashBoard():
         return render_template("DashBoard.html")
@@ -641,83 +641,129 @@ def register_routes(app, oauth):
      # Print the webhook data to the console
      logging.info(f"Webhook triggered: {json.dumps(webhook_data, indent=4)}")
      
-    @app.route("/add-device", methods=["GET", "POST"])
+
+
+
+
+    @app.route('/dashboard/add_device', methods=['GET', 'POST'])
     @login_required
     def add_device():
-     email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
-     if not email:
-        flash("User email not found in session.", "error")
-        return redirect(url_for("login"))
-
      form = AddDeviceForm()
+     if form.validate_on_submit():
+        email = session.get("login_email") or session.get("user", {}).get("email")
+        if not email:
+            flash("User email not found in session.", "error")
+            return redirect(url_for("login"))
 
-     if request.method == "POST" and form.validate_on_submit():
+        form_data = {
+            "entityName": form.entityName.data,
+            "deviceIMEI": form.deviceIMEI.data,
+            "simICCId": form.simICCId.data,
+            "batterySLNo": form.batterySLNo.data,
+            "panelSLNo": form.panelSLNo.data,
+            "luminarySLNo": form.luminarySLNo.data,
+            "mobileNo": form.mobileNo.data,
+            "district": form.district.data,
+            "panchayat": form.panchayat.data,
+            "block": form.block.data,
+            "wardNo": form.wardNo.data,
+            "poleNo": form.poleNo.data,
+            "active": form.active.data,
+            "installationDate": form.installationDate.data,
+        }
+
+        # Log the form data for debugging
+        print("Form Data:", form_data)
+
         try:
-            # Extract form data
-            entityName = request.form.get("entityName")
-            deviceIMEI = request.form.get("deviceIMEI")
-            simICCId = request.form.get("simICCId")
-            batterySLNo = request.form.get("batterySLNo")
-            panelSLNo = request.form.get("panelSLNo")
-            luminarySLNo = request.form.get("luminarySLNo")
-            mobileNo = request.form.get("mobileNo")
-            district = request.form.get("district")
-            panchayat = request.form.get("panchayat")
-            block = request.form.get("block")
-            wardNo = request.form.get("wardNo")
-            poleNo = request.form.get("poleNo")
-            active = request.form.get("active")
-            installationDate = request.form.get("installationDate")
-            created_at = datetime.now()
-
-            # Database connection
             conn = get_db_connection()
             cur = conn.cursor()
 
-            # Insert data into the database
-            cur.execute(
-                """
-                INSERT INTO devices (
-                    email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo,
-                    district, panchayat, block, wardNo, poleNo, active, installationDate, created_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo,
-                    district, panchayat, block, wardNo, poleNo, active, installationDate, created_at
-                )
-            )
+            # Check for duplicate deviceIMEI
+            cur.execute("SELECT COUNT(*) FROM devices WHERE deviceIMEI = %s", (form_data["deviceIMEI"],))
+            if cur.fetchone()[0] > 0:
+                flash("A device with this IMEI already exists.", "danger")
+                conn.close()
+                return render_template('add_device.html', form=form)
+
+            cur.execute("""
+                INSERT INTO devices (email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo, district, panchayat, block, wardNo, poleNo, active, installationDate, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                email,
+                form_data["entityName"],
+                form_data["deviceIMEI"],
+                form_data["simICCId"],
+                form_data["batterySLNo"],
+                form_data["panelSLNo"],
+                form_data["luminarySLNo"],
+                form_data["mobileNo"],
+                form_data["district"],
+                form_data["panchayat"],
+                form_data["block"],
+                form_data["wardNo"],
+                form_data["poleNo"],
+                form_data["active"],
+                form_data["installationDate"],
+                datetime.now()
+            ))
             conn.commit()
+            cur.close()
             conn.close()
 
-            # Log the action and send a webhook
             log_action(email, "Device added")
-            send_webhook("device_added", {
-                "email": email,
-                "entityName": entityName,
-                "deviceIMEI": deviceIMEI,
-                "simICCId": simICCId,
-                "batterySLNo": batterySLNo,
-                "panelSLNo": panelSLNo,
-                "luminarySLNo": luminarySLNo,
-                "mobileNo": mobileNo,
-                "district": district,
-                "panchayat": panchayat,
-                "block": block,
-                "wardNo": wardNo,
-                "poleNo": poleNo,
-                "active": active,
-                "installationDate": installationDate.strftime('%Y-%m-%d'),
-                "created_at": created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
+            send_webhook("device_added", form_data)
 
-            flash("Device added successfully.", "success")
-            return redirect(url_for("DashBoard"))
+            flash("Device added successfully!", "success")
+            return redirect(url_for('DashBoard'))
         except Exception as e:
             logging.error(f"Error adding device for email {email}: {e}")
             flash("An error occurred while adding the device.", "error")
 
-     return render_template("add_device.html", form=form)
+     return render_template('add_device.html', form=form)
+     
+    @app.route('/dashboard/view_devices', methods=['GET'])
+    def view_devices():
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        flash("User email not found in session.", "error")
+        return redirect(url_for("login"))
+
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM devices WHERE email = %s", (email,))
+        devices = cur.fetchall()
+     except Exception as e:
+        return jsonify({"error": str(e)})
+     finally:
+        cur.close()
+        conn.close()
+
+     devices_data = []
+     for device in devices:
+        device_data = {
+            "entityName": device[2],
+            "deviceIMEI": device[3],
+            "simICCId": device[4],
+            "batterySLNo": device[5],
+            "panelSLNo": device[6],
+            "luminarySLNo": device[7],
+            "mobileNo": device[8],
+            "district": device[9],
+            "panchayat": device[10],
+            "block": device[11],
+            "wardNo": device[12],
+            "poleNo": device[13],
+            "active": device[14],
+            "installationDate": device[15],
+        }
+        devices_data.append(device_data)
+
+     return jsonify(devices_data)
+
+    
+
 
     
 
