@@ -50,9 +50,9 @@ def register_routes(app, oauth):
             response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=form_data)
             outcome = response.json()
 
-            if not outcome['success']:
-                 flash('The provided Turnstile token was not valid!', 'error')
-                 return redirect(url_for('login'))
+        #   if not outcome['success']:
+        #        flash('The provided Turnstile token was not valid!', 'error')
+        #        return redirect(url_for('login'))
 
             email = request.form["user"]
             password = request.form["password"]
@@ -92,6 +92,7 @@ def register_routes(app, oauth):
         return render_template("login.html", site_key=SITE_KEY)
     #admindashboard route
     @app.route("/admindashboard")
+    @login_required
     def admindashboard():
     # You can add logic here to display relevant admin data
      return render_template("Admindashboard.html")
