@@ -18,58 +18,36 @@
         background-color: #121212;
         color: #e0e0e0;
       }
+
       body.dark .sidebar,
       body.dark .content nav,
       body.dark .content main {
         background-color: #333;
         color: #e0e0e0;
       }
+
       body.dark .sidebar .side-menu li a {
         color: #e0e0e0;
       }
+
       body.dark .sidebar .side-menu li.active a {
         background-color: #444;
       }
+
       body.dark .sidebar .side-menu li a:hover {
         background-color: #444;
       }
+
       body.dark .content-section h2 {
         color: #e0e0e0;
       }
-      body.dark .device-counter button,
-      body.dark .device-counter span {
-        background-color: #444;
-        color: #e0e0e0;
-      }
-      body.dark .table-container {
-        background-color: #333;
-      }
-      body.dark table {
-        border-color: #555;
-      }
-      body.dark th,
-      body.dark td {
-        background-color: #444;
-        color: #e0e0e0;
-      }
-      body.dark th {
-        background-color: #555;
-      }
-      body.dark .notif-content {
-        background-color: #333;
-        color: #e0e0e0;
-      }
-      body.dark .notif-content ul li {
-        border-bottom-color: #555;
-      }
-      body.dark .notif-content ul li:hover {
-        background-color: #444;
-      }
+
       .device-counter {
         display: flex;
         align-items: center;
         margin-top: 20px;
       }
+
       .device-counter button {
         width: 30px;
         height: 30px;
@@ -80,33 +58,56 @@
         background-color: #f2f2f2;
         cursor: pointer;
       }
+
       .device-counter span {
         width: 30px;
         text-align: center;
         margin: 0 10px;
         font-size: 20px;
       }
+
       #device-list {
         margin-top: 20px;
       }
+
       .content-section {
         display: none;
       }
+
       .table-container {
         margin-top: 20px;
       }
+
       table {
         width: 100%;
         border-collapse: collapse;
+        margin-top: 20px;
       }
+
       th,
       td {
         border: 1px solid #ddd;
         padding: 8px;
+        text-align: left;
       }
+
       th {
         background-color: #f2f2f2;
       }
+
+      .device-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background-color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .device-item p {
+        margin: 5px 0;
+      }
+
       .notif-content {
         display: none;
         background-color: #fff;
@@ -120,26 +121,32 @@
         z-index: 1000;
         border-radius: 8px;
       }
+
       .notif-content ul {
         list-style: none;
         padding: 0;
         margin: 0;
       }
+
       .notif-content ul li {
         border-bottom: 1px solid #ddd;
         padding: 10px;
         transition: background-color 0.3s;
       }
+
       .notif-content ul li:hover {
         background-color: #f9f9f9;
       }
+
       .notif-content ul li:last-child {
         border-bottom: none;
       }
+
       .notif {
         position: relative;
         cursor: pointer;
       }
+
       .notif .count {
         background-color: red;
         color: white;
@@ -278,9 +285,12 @@
             Request
           </button>
         </div>
+
         <div id="add-device" class="content-section">
           <h2>Add Devices</h2>
-          <form id="device-form">
+          <form id="device-form" method="POST" action="/dashboard/add_device">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
             <label for="entityName">Entity Name</label>
             <input type="text" id="entityName" name="entityName" required />
             <label for="deviceIMEI">Device IMEI</label>
@@ -321,8 +331,11 @@
           </form>
         </div>
         <div id="view-device-content" class="content-section">
-          <h2>View Devices</h2>
-          <div id="device-list"></div>
+          <h2>View Devices Content</h2>
+
+          <div id="device-list1">
+            <!-- Device data will be injected here -->
+          </div>
         </div>
       </main>
     </div>
@@ -392,8 +405,7 @@
         }
       });
       document.addEventListener("DOMContentLoaded", function () {
-        const url =
-          "http://127.0.0.1:5500/DashBoardMain-main/templates/jsonData.json";
+        const url = "http://127.0.0.1:5500/temp1-main/templates/jsonData.json";
 
         axios
           .get(url)
@@ -627,44 +639,89 @@
           e.preventDefault();
           window.location.href = "/logout";
         });
-      document
-        .getElementById("device-form")
-        .addEventListener("submit", function (event) {
-          event.preventDefault();
 
-          const formData = new FormData(event.target);
-          const data = Object.fromEntries(formData.entries());
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("device-form")
+          .addEventListener("submit", function (event) {
+            event.preventDefault();
 
-          axios
-            .post("/add_device", data)
-            .then((response) => {
-              alert("Device added successfully!");
-            })
-            .catch((error) => {
-              console.error("There was an error adding the device:", error);
-            });
-        });
+            const formData = new FormData(event.target);
+            const csrfToken = formData.get("csrf_token"); // Extract the CSRF token
 
-      document
-        .getElementById("get-device-link")
-        .addEventListener("click", function () {
-          axios
-            .get("/get_devices")
-            .then((response) => {
-              const devices = response.data;
-              const deviceList = document.getElementById("device-list");
-              deviceList.innerHTML = "";
+            // Convert form data to a plain object
+            const data = Object.fromEntries(formData.entries());
 
+            // Configure the Axios request with the CSRF token
+            axios
+              .post("/dashboard/add_device", data, {
+                headers: {
+                  "X-CSRFToken": csrfToken, // Include the CSRF token in headers
+                },
+              })
+              .then((response) => {
+                alert("Device added successfully!");
+              })
+              .catch((error) => {
+                console.error("There was an error adding the device:", error);
+                alert("Error adding device. Please try again.");
+              });
+          });
+      });
+      function fetchDevices() {
+        axios
+          .get("/dashboard/view_devices")
+          .then((response) => {
+            const devices = response.data;
+            const deviceList = document.getElementById("device-list1");
+            deviceList.innerHTML = "";
+
+            if (devices.error) {
+              deviceList.innerHTML = `<p>${devices.error}</p>`;
+            } else {
               devices.forEach((device) => {
                 const deviceItem = document.createElement("div");
-                deviceItem.textContent = JSON.stringify(device, null, 2);
+                deviceItem.className = "device";
+                deviceItem.innerHTML = `
+                                <p>Entity Name: ${device.entityName}</p>
+                                <p>Device IMEI: ${device.deviceIMEI}</p>
+                                <p>SIM ICC ID: ${device.simICCId}</p>
+                                <p>Battery SL No: ${device.batterySLNo}</p>
+                                <p>Panel SL No: ${device.panelSLNo}</p>
+                                <p>Luminary SL No: ${device.luminarySLNo}</p>
+                                <p>Mobile No: ${device.mobileNo}</p>
+                                <p>District: ${device.district}</p>
+                                <p>Panchayat: ${device.panchayat}</p>
+                                <p>Block: ${device.block}</p>
+                                <p>Ward No: ${device.wardNo}</p>
+                                <p>Pole No: ${device.poleNo}</p>
+                                <p>Active: ${device.active}</p>
+                                <p>Installation Date: ${device.installationDate}</p>
+                            `;
                 deviceList.appendChild(deviceItem);
               });
-            })
-            .catch((error) => {
-              console.error("There was an error fetching the devices:", error);
-            });
-        });
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching devices:", error);
+            const deviceList = document.getElementById("device-list");
+            deviceList.innerHTML =
+              "<p>Error fetching devices. Please try again later.</p>";
+            if (error.response) {
+              console.error("Response data:", error.response.data);
+              console.error("Response status:", error.response.status);
+              console.error("Response headers:", error.response.headers);
+            } else if (error.request) {
+              console.error("Request data:", error.request);
+            } else {
+              console.error("Error message:", error.message);
+            }
+            console.error("Config:", error.config);
+          });
+      }
+
+      // Fetch devices when the page loads
+      window.onload = fetchDevices;
     </script>
   </body>
 </html>
