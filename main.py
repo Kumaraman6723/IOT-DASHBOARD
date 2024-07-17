@@ -6,7 +6,7 @@ from config import appConf
 from routes import register_routes
 from models import token_fn ,token_route
 from functools import wraps
-
+from flask_cors import CORS
 from collections import defaultdict
 
 
@@ -15,7 +15,7 @@ app.config['SECRET_KEY'] = appConf.get("FLASK_SECRET")
 Bootstrap5(app)
 csrf = CSRFProtect(app)
 oauth = OAuth(app)
-
+CORS(app)
 
 oauth.register(
     "myApp",
