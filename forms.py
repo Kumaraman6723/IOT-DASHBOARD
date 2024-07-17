@@ -100,3 +100,62 @@ class UpdateProfileForm(FlaskForm):
         Length(max=100, message="Position must be 100 characters or fewer")
     ])
     submit = SubmitField('Update Profile')
+
+class AddDeviceForm(FlaskForm):
+    entityName = StringField('Entity Name', validators=[
+        DataRequired(message="Entity Name is required"),
+        Length(max=100, message="Entity Name must be 100 characters or fewer")
+    ])
+    deviceIMEI = StringField('Device IMEI', validators=[
+        DataRequired(message="Device IMEI is required"),
+        Length(max=100, message="Device IMEI must be 100 characters or fewer")
+    ])
+    simICCId = StringField('SIM ICC ID', validators=[
+        DataRequired(message="SIM ICC ID is required"),
+        Length(max=100, message="SIM ICC ID must be 100 characters or fewer")
+    ])
+    batterySLNo = StringField('Battery SL No', validators=[
+        DataRequired(message="Battery SL No is required"),
+        Length(max=100, message="Battery SL No must be 100 characters or fewer")
+    ])
+    panelSLNo = StringField('Panel SL No', validators=[
+        DataRequired(message="Panel SL No is required"),
+        Length(max=100, message="Panel SL No must be 100 characters or fewer")
+    ])
+    luminarySLNo = StringField('Luminary SL No', validators=[
+        DataRequired(message="Luminary SL No is required"),
+        Length(max=100, message="Luminary SL No must be 100 characters or fewer")
+    ])
+    mobileNo = StringField('Mobile No', validators=[
+        DataRequired(message="Mobile No is required"),
+        Length(max=20, message="Mobile No must be 20 characters or fewer")
+    ])
+    district = StringField('District', validators=[
+        DataRequired(message="District is required"),
+        Length(max=100, message="District must be 100 characters or fewer")
+    ])
+    panchayat = StringField('Panchayat', validators=[
+        DataRequired(message="Panchayat is required"),
+        Length(max=100, message="Panchayat must be 100 characters or fewer")
+    ])
+    block = StringField('Block', validators=[
+        DataRequired(message="Block is required"),
+        Length(max=100, message="Block must be 100 characters or fewer")
+    ])
+    wardNo = StringField('Ward No', validators=[
+        DataRequired(message="Ward No is required"),
+        Length(max=100, message="Ward No must be 100 characters or fewer")
+    ])
+    poleNo = StringField('Pole No', validators=[
+        DataRequired(message="Pole No is required"),
+        Length(max=100, message="Pole No must be 100 characters or fewer")
+    ])
+    active = SelectField('Active', choices=[
+        ('true', 'True'),
+        ('false', 'False')
+    ], validators=[DataRequired(message="Active status is required")])
+    installationDate = DateField('Installation Date', format='%Y-%m-%d', validators=[
+        DataRequired(message="Installation Date is required"),
+        Regexp(regex=r'\d{4}-\d{2}-\d{2}', message="Date must be in YYYY-MM-DD format")
+    ])
+    submit = SubmitField('Add Device')
