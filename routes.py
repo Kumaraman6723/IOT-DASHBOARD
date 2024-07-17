@@ -2,7 +2,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models import fetch_email, fetch_email_from_user, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
-from forms import RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
+from forms import AddDeviceForm, RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
 from utils import otpmaker, check_password
 from config import appConf, SITE_KEY, SECRET_KEY
 from werkzeug.security import generate_password_hash
@@ -640,8 +640,86 @@ def register_routes(app, oauth):
      }
      # Print the webhook data to the console
      logging.info(f"Webhook triggered: {json.dumps(webhook_data, indent=4)}")
+     
+    @app.route("/add-device", methods=["GET", "POST"])
+    @login_required
+    def add_device():
+     email = session.get("login_email") or session.get("user", {}).get("user_info", {}).get("email")
+     if not email:
+        flash("User email not found in session.", "error")
+        return redirect(url_for("login"))
 
+     form = AddDeviceForm()
 
+     if request.method == "POST" and form.validate_on_submit():
+        try:
+            # Extract form data
+            entityName = request.form.get("entityName")
+            deviceIMEI = request.form.get("deviceIMEI")
+            simICCId = request.form.get("simICCId")
+            batterySLNo = request.form.get("batterySLNo")
+            panelSLNo = request.form.get("panelSLNo")
+            luminarySLNo = request.form.get("luminarySLNo")
+            mobileNo = request.form.get("mobileNo")
+            district = request.form.get("district")
+            panchayat = request.form.get("panchayat")
+            block = request.form.get("block")
+            wardNo = request.form.get("wardNo")
+            poleNo = request.form.get("poleNo")
+            active = request.form.get("active")
+            installationDate = request.form.get("installationDate")
+            created_at = datetime.now()
+
+            # Database connection
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            # Insert data into the database
+            cur.execute(
+                """
+                INSERT INTO devices (
+                    email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo,
+                    district, panchayat, block, wardNo, poleNo, active, installationDate, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo,
+                    district, panchayat, block, wardNo, poleNo, active, installationDate, created_at
+                )
+            )
+            conn.commit()
+            conn.close()
+
+            # Log the action and send a webhook
+            log_action(email, "Device added")
+            send_webhook("device_added", {
+                "email": email,
+                "entityName": entityName,
+                "deviceIMEI": deviceIMEI,
+                "simICCId": simICCId,
+                "batterySLNo": batterySLNo,
+                "panelSLNo": panelSLNo,
+                "luminarySLNo": luminarySLNo,
+                "mobileNo": mobileNo,
+                "district": district,
+                "panchayat": panchayat,
+                "block": block,
+                "wardNo": wardNo,
+                "poleNo": poleNo,
+                "active": active,
+                "installationDate": installationDate.strftime('%Y-%m-%d'),
+                "created_at": created_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+
+            flash("Device added successfully.", "success")
+            return redirect(url_for("DashBoard"))
+        except Exception as e:
+            logging.error(f"Error adding device for email {email}: {e}")
+            flash("An error occurred while adding the device.", "error")
+
+     return render_template("add_device.html", form=form)
+
+    
 
 
 
