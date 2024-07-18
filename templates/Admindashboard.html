@@ -12,6 +12,66 @@
       href="{{ url_for('static', filename='css/dashboard.css') }}"
     />
     <title>Admin Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f4f4f9;
+        color: #333;
+      }
+      .table-container {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 20px;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #007bff;
+        color: white;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        text-align: center;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+      #dashboardButton {
+        margin-bottom: 20px;
+      }
+    </style>
   </head>
   <body>
     <div class="sidebar">
@@ -60,8 +120,23 @@
           style="display: none"
         >
           <h2>User Activity</h2>
-          <p>Here you can monitor user activities.</p>
-          <!-- Add logs or user activities display here -->
+          <div class="table-container">
+            <table id="webhooks-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Event</th>
+                  <th>Data</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="button-container">
+            <button id="prevPage" disabled>Previous</button>
+            <button id="nextPage" disabled>Next</button>
+          </div>
         </div>
         <div
           id="settings-content"
@@ -73,48 +148,96 @@
         </div>
       </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const dashboardLink = document.getElementById("dashboard-link");
+        const userActivityLink = document.getElementById("user-activity-link");
+        const settingsLink = document.getElementById("settings-link");
+
+        const dashboardContent = document.getElementById("dashboard-content");
+        const userActivityContent = document.getElementById(
+          "user-activity-content"
+        );
+        const settingsContent = document.getElementById("settings-content");
+
+        let currentPage = 1;
+
+        dashboardLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(dashboardContent);
+        });
+
+        userActivityLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(userActivityContent);
+          loadWebhooksData(currentPage);
+        });
+
+        settingsLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(settingsContent);
+        });
+
+        document
+          .getElementById("prevPage")
+          .addEventListener("click", function () {
+            if (currentPage > 1) {
+              currentPage--;
+              loadWebhooksData(currentPage);
+            }
+          });
+
+        document
+          .getElementById("nextPage")
+          .addEventListener("click", function () {
+            currentPage++;
+            loadWebhooksData(currentPage);
+          });
+
+        function showSection(section) {
+          dashboardContent.style.display = "none";
+          userActivityContent.style.display = "none";
+          settingsContent.style.display = "none";
+
+          section.style.display = "block";
+        }
+
+        function loadWebhooksData(page) {
+          axios
+            .get(`/webhooks?page=${page}&limit=10`)
+            .then((response) => {
+              const webhooks = response.data;
+              const tableBody = document.querySelector("#webhooks-table tbody");
+              tableBody.innerHTML = "";
+
+              webhooks.forEach((webhook) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${webhook.email}</td>
+                  <td>${webhook.event}</td>
+                  <td>${JSON.stringify(webhook.data)}</td>
+                  <td>${webhook.created_at}</td>
+                `;
+                tableBody.appendChild(row);
+              });
+
+              document.getElementById("prevPage").disabled = page === 1;
+              document.getElementById("nextPage").disabled =
+                webhooks.length < 10;
+            })
+            .catch((error) => {
+              console.error("Error loading webhooks data:", error);
+            });
+        }
+
+        document
+          .getElementById("logout-link")
+          .addEventListener("click", function (e) {
+            e.preventDefault();
+            window.location.href = "/logout";
+          });
+      });
+    </script>
   </body>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const dashboardLink = document.getElementById("dashboard-link");
-      const userActivityLink = document.getElementById("user-activity-link");
-      const settingsLink = document.getElementById("settings-link");
-
-      const dashboardContent = document.getElementById("dashboard-content");
-      const userActivityContent = document.getElementById(
-        "user-activity-content"
-      );
-      const settingsContent = document.getElementById("settings-content");
-
-      dashboardLink.addEventListener("click", function (e) {
-        e.preventDefault();
-        showSection(dashboardContent);
-      });
-
-      userActivityLink.addEventListener("click", function (e) {
-        e.preventDefault();
-        showSection(userActivityContent);
-      });
-
-      settingsLink.addEventListener("click", function (e) {
-        e.preventDefault();
-        showSection(settingsContent);
-      });
-
-      function showSection(section) {
-        dashboardContent.style.display = "none";
-        userActivityContent.style.display = "none";
-        settingsContent.style.display = "none";
-
-        section.style.display = "block";
-      }
-    });
-
-    document
-      .getElementById("logout-link")
-      .addEventListener("click", function (e) {
-        e.preventDefault();
-        window.location.href = "/logout";
-      });
-  </script>
 </html>
