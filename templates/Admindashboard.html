@@ -84,10 +84,18 @@
           <a href="#" id="dashboard-link"
             ><i class="bx bxs-dashboard"></i>Dashboard</a
           >
+          >
         </li>
         <li>
           <a href="#" id="user-activity-link"
             ><i class="bx bx-user"></i>User Activity</a
+          >
+          >
+        </li>
+        <li>
+          <a href="#" id="approve-link"
+            ><i class="bx bx-devices"></i>Approve Devices</a
+          >
           >
         </li>
         <li>
@@ -99,6 +107,7 @@
           <a href="#" id="logout-link" class="logout"
             ><i class="bx bx-log-out-circle"></i>Logout</a
           >
+          >
         </li>
       </ul>
     </div>
@@ -108,11 +117,34 @@
         <a href="#" class="notif"
           ><i class="bx bx-bell"></i><span class="count">1</span></a
         >
+        >
       </nav>
       <main>
         <div id="dashboard-content" class="content-section">
           <h2>Admin Dashboard</h2>
           <p>Welcome to the admin dashboard!</p>
+        </div>
+        <div id="approve-content" class="content-section" style="display: none">
+          <h2>Approve Devices</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                  />
+                  <th>Email</th>
+                  <th>device-Count</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="requestTableBody">
+                <!-- Rows will be populated here -->
+              </tbody>
+            </table>
+          </div>
         </div>
         <div
           id="user-activity-content"
@@ -154,18 +186,26 @@
         const dashboardLink = document.getElementById("dashboard-link");
         const userActivityLink = document.getElementById("user-activity-link");
         const settingsLink = document.getElementById("settings-link");
+        const approveLink = document.getElementById("approve-link");
 
         const dashboardContent = document.getElementById("dashboard-content");
         const userActivityContent = document.getElementById(
           "user-activity-content"
         );
         const settingsContent = document.getElementById("settings-content");
+        const approveContent = document.getElementById("approve-content");
 
         let currentPage = 1;
 
         dashboardLink.addEventListener("click", function (e) {
           e.preventDefault();
           showSection(dashboardContent);
+        });
+
+        approveLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(approveContent);
+          loadRequests();
         });
 
         userActivityLink.addEventListener("click", function (e) {
@@ -199,6 +239,7 @@
           dashboardContent.style.display = "none";
           userActivityContent.style.display = "none";
           settingsContent.style.display = "none";
+          approveContent.style.display = "none";
 
           section.style.display = "block";
         }
@@ -231,12 +272,69 @@
             });
         }
 
+        function loadRequests() {
+          axios
+            .get("/admindashboard/approve_device_requests")
+            .then((response) => {
+              const requests = response.data;
+              const requestTableBody =
+                document.getElementById("requestTableBody");
+              requestTableBody.innerHTML = "";
+              requests.forEach((request) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${request[1]}</td>
+                  <td>${request[2]}</td>
+                  <td>
+                    <button onclick="processRequest(${request[0]}, 'approved', '${request[1]}')">Approve</button>
+                    <button onclick="processRequest(${request[0]}, 'rejected', '${request[1]}')">Reject</button>
+                  </td>
+                `;
+                requestTableBody.appendChild(row);
+              });
+            })
+            .catch((error) => {
+              console.error("Error loading requests:", error);
+              alert("An error occurred while loading device requests.");
+            });
+        }
+
+        window.processRequest = function (request_id, approval_status, email) {
+          const csrfToken = document.querySelector(
+            'input[name="csrf_token"]'
+          ).value;
+          axios
+            .post(
+              "/admindashboard/approve_device_requests",
+              {
+                request_id: request_id,
+                approval_status: approval_status,
+                email: email,
+              },
+              {
+                headers: {
+                  "X-CSRFToken": csrfToken,
+                },
+              }
+            )
+            .then((response) => {
+              alert(response.data.message);
+              loadRequests();
+            })
+            .catch((error) => {
+              console.error("Error processing request:", error);
+              alert("An error occurred while processing the device request.");
+            });
+        };
+
         document
           .getElementById("logout-link")
           .addEventListener("click", function (e) {
             e.preventDefault();
             window.location.href = "/logout";
           });
+
+        loadRequests();
       });
     </script>
   </body>
