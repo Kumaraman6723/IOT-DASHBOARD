@@ -1,8 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import SelectField, StringField, DateField, SubmitField, TelField
+from wtforms import HiddenField, IntegerField, SelectField, StringField, DateField, SubmitField, TelField
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField,validators
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, ValidationError,NumberRange
 import re
 
 def validate_contact(form, field):
@@ -117,3 +117,8 @@ class AddDeviceForm(FlaskForm):
     active = SelectField('Active', choices=[('true', 'True'), ('false', 'False')], validators=[DataRequired()])
     installationDate = StringField('Installation Date', validators=[DataRequired()])
     submit = SubmitField('Submit')
+    
+class RequestDeviceForm(FlaskForm):
+    csrf_token = HiddenField()
+    device_count = IntegerField('Device Count', validators=[DataRequired(), NumberRange(min=1)])
+    submit = SubmitField('Request')
