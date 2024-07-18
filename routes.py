@@ -2,7 +2,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models import fetch_email, fetch_email_from_user, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
-from forms import AddDeviceForm, RegisterForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
+from forms import AddDeviceForm, RegisterForm, RequestDeviceForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
 from utils import otpmaker, check_password
 from config import appConf, SITE_KEY, SECRET_KEY
 from werkzeug.security import generate_password_hash
@@ -773,7 +773,7 @@ def register_routes(app, oauth):
             logging.error(f"Error adding device for email {email}: {e}")
             flash("An error occurred while adding the device.", "error")
 
-     return render_template('add_device.html', form=form)
+     return render_template( form=form)
      
     @app.route('/dashboard/view_devices', methods=['GET'])
     def view_devices():
@@ -816,13 +816,93 @@ def register_routes(app, oauth):
      return jsonify(devices_data)
 
     
+    @app.route('/dashboard/request_device', methods=['GET', 'POST'])
+    @login_required
+    def request_device():
+     form = RequestDeviceForm()
+     if form.validate_on_submit():
+        email = session.get("login_email") or session.get("user", {}).get("email")
+        if not email:
+            flash("User email not found in session.", "error")
+            return redirect(url_for("login"))
 
+        device_count = form.device_count.data
 
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO device_requests (email, device_count, status, created_at)
+                VALUES (%s, %s, %s, %s)
+            """, (email, device_count, 'pending', datetime.now()))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            log_action(email, "Device request submitted")
+            send_webhook("device_request_submitted", {"email": email, "device_count": device_count})
+
+            flash("Device request submitted successfully!", "success")
+            return redirect(url_for('DashBoard'))
+        except Exception as e:
+            logging.error(f"Error requesting device for email {email}: {e}")
+            flash("An error occurred while submitting the device request.", "error")
     
+     return render_template('request_device.html', form=form)
+  
+    @app.route('/admindashboard/approve_device_requests', methods=['GET', 'POST'])
+    @login_required
+    def approve_device_requests():
+     if request.method == 'POST':
+        try:
+            data = request.json
+            request_id = data.get('request_id')
+            approval_status = data.get('approval_status')
+            email = data.get('email')
+            device_count = data.get('device_count')
 
+            logging.info(f"request_id: {request_id} ({type(request_id)}), approval_status: {approval_status} ({type(approval_status)}), email: {email} ({type(email)}), device_count: {device_count} ({type(device_count)})")
 
+            conn = get_db_connection()
+            cur = conn.cursor()
 
+            # Update device request status using email
+            sql_query = "UPDATE device_requests SET status = %s WHERE email = %s"
+            sql_params = (approval_status, email)
 
+            logging.info(f"Executing SQL: {sql_query} with params: {sql_params}")
+
+            cur.execute(sql_query, sql_params)
+            conn.commit()
+
+            # Log action
+            log_action(email, f"Device request {approval_status}")
+
+            # Send webhook
+            if approval_status == 'approved':
+                send_webhook("device_request_approved", {"request_id": request_id, "email": email})
+            elif approval_status == 'rejected':
+                send_webhook("device_request_rejected", {"request_id": request_id, "email": email})
+
+            cur.close()
+            conn.close()
+            return jsonify({"message": "Device request processed successfully!"}), 200
+        except Exception as e:
+            logging.error(f"Error processing device request: {str(e)}")
+            return jsonify({"message": "An error occurred while processing the device request."}), 500
+
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Fetch pending requests
+        cur.execute("SELECT id, email, device_count FROM device_requests WHERE status = 'pending'")
+        pending_requests = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(pending_requests), 200
+     except Exception as e:
+        logging.error(f"Error fetching pending device requests: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching pending device requests."}), 500
 
 
 
