@@ -662,7 +662,6 @@ def register_routes(app, oauth):
         logging.info("Webhook data saved to the database successfully.")
      except Exception as e:
         logging.error(f"Error saving webhook data: {e}")
-    
     @app.route('/webhooks', methods=['GET'])
     def get_webhooks():
      try:
