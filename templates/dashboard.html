@@ -271,7 +271,11 @@
         </div>
         <div id="device-content" class="content-section">
           <h2>Request Device Data</h2>
-          <form method="POST" action="/dashboard/request_device">
+          <form
+            id="device-form1"
+            method="POST"
+            action="/dashboard/request_device"
+          >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="device-counter">
               <button
@@ -882,6 +886,47 @@
       window.onload = fetchDevices;
 
       //request device access
+
+      function changeDeviceCount(delta) {
+        const deviceCountElement = document.getElementById("device-count");
+        let deviceCount = parseInt(deviceCountElement.textContent, 10);
+        deviceCount += delta;
+        if (deviceCount < 0) deviceCount = 0;
+        deviceCountElement.textContent = deviceCount;
+        document.getElementById("device_count").value = deviceCount;
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("device-form1")
+          .addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const csrfToken = formData.get("csrf_token"); // Extract the CSRF token
+
+            // Convert form data to a plain object
+            const data = Object.fromEntries(formData.entries());
+
+            // Configure the Axios request with the CSRF token
+            axios
+              .post("/dashboard/request_device", data, {
+                headers: {
+                  "X-CSRFToken": csrfToken, // Include the CSRF token in headers
+                },
+              })
+              .then((response) => {
+                alert("Device request submitted successfully!");
+              })
+              .catch((error) => {
+                console.error(
+                  "There was an error submitting the device request:",
+                  error
+                );
+                alert("Error submitting device request. Please try again.");
+              });
+          });
+      });
     </script>
   </body>
 </html>
