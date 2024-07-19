@@ -815,7 +815,8 @@ def register_routes(app, oauth):
 
      return jsonify(devices_data)
 
-    
+ 
+
     @app.route('/dashboard/request_device', methods=['GET', 'POST'])
     @login_required
     def request_device():
@@ -831,6 +832,21 @@ def register_routes(app, oauth):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
+            
+            # Check the number of devices registered to the user's email
+            cur.execute("""
+                SELECT COUNT(*) FROM token_device WHERE email = %s
+            """, (email,))
+            registered_devices_count = cur.fetchone()[0]
+            
+            # Check if the user has enough devices registered
+            if registered_devices_count < device_count:
+                flash(f"You do not have enough devices registered. You have {registered_devices_count} devices registered.", "error")
+                cur.close()
+                conn.close()
+                return redirect(url_for('request_device'))
+
+            # Insert the device request into the device_requests table
             cur.execute("""
                 INSERT INTO device_requests (email, device_count, status, created_at)
                 VALUES (%s, %s, %s, %s)
@@ -847,8 +863,31 @@ def register_routes(app, oauth):
         except Exception as e:
             logging.error(f"Error requesting device for email {email}: {e}")
             flash("An error occurred while submitting the device request.", "error")
-    
-     return render_template('request_device.html', form=form)
+            return redirect(url_for('request_device'))
+
+     return render_template('dashboard.html', form=form)
+
+    @app.route('/dashboard/get_device_count', methods=['GET'])
+    @login_required
+    def get_device_count():
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        return jsonify({"error": "User email not found in session."}), 400
+
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM token_device WHERE email = %s
+        """, (email,))
+        registered_devices_count = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        return jsonify({"registered_devices_count": registered_devices_count})
+     except Exception as e:
+        logging.error(f"Error fetching device count for email {email}: {e}")
+        return jsonify({"error": "An error occurred while fetching the device count."}), 500
+
   
     @app.route('/admindashboard/approve_device_requests', methods=['GET', 'POST'])
     @login_required
@@ -909,26 +948,29 @@ def register_routes(app, oauth):
 
 
     #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
+     #SECRET_TOKEN = os.environ.get('SECRET_TOKEN', 'default_secret_token')
     SECRET_TOKEN = "tR7Hs9Ky3Lm1Pq4Xw2Zb8Nf5Vj7Cd6"
-
+    if not SECRET_TOKEN:
+        raise ValueError("SECRET_TOKEN environment variable is not set")
+    
     def require_auth(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-         auth_header = request.headers.get('Authorization')
-         if not auth_header:
-            return jsonify({"error": "Authorization header is missing"}), 401
-         try:
-            auth_type, token = auth_header.split()
-            
-            if auth_type.lower() != 'bearer':
-                return jsonify({"error": "Bearer token required"}), 401
-            
-            # Use secrets.compare_digest for secure string comparison
-            if not secrets.compare_digest(token, SECRET_TOKEN):
-                return jsonify({"error": "Invalid token"}), 401
-         except ValueError:
-            return jsonify({"error": "Invalid Authorization header format"}), 401
-         return f(*args, **kwargs)
+            auth_header = request.headers.get('Authorization')
+            if not auth_header:
+                return jsonify({"error": "Authorization header is missing"}), 401
+            try:
+                auth_type, token = auth_header.split()
+                
+                if auth_type.lower() != 'bearer':
+                    return jsonify({"error": "Bearer token required"}), 401
+                
+                # Use secrets.compare_digest for secure string comparison
+                if not secrets.compare_digest(token, SECRET_TOKEN):
+                    return jsonify({"error": "Invalid token"}), 401
+            except ValueError:
+                return jsonify({"error": "Invalid Authorization header format"}), 401
+            return f(*args, **kwargs)
         return decorated
     
 
@@ -936,37 +978,42 @@ def register_routes(app, oauth):
     @require_auth
     def protected():
         return jsonify({"message": "This is a protected route"})
-        # If authentication is successful, proceed to execute the decorated function
-        return f(*args, **kwargs)
-        return decorated
-
 
     @app.route("/device", methods=['GET'])
     @require_auth
     def handle_device():
         device_id = request.args.get('device_id')
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
         if not device_id:
             return jsonify({"error": "No device ID provided"}), 400
         
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
         try:
-            # Use parameterized queries to prevent SQL injection
-            cur.execute("UPDATE token_device SET Device_id = %s WHERE Device_id IS NULL", (device_id,))
+            # Generate a new token (you may want to use a more secure method)
+            new_token = secrets.token_hex(10)
+            
+            # Insert or update the device
+            cur.execute("""
+                INSERT INTO token_device (Device_id, Token_id) 
+                VALUES (%s, %s) 
+                ON DUPLICATE KEY UPDATE Token_id = VALUES(Token_id)
+            """, (device_id, new_token))
             conn.commit()
             
-            cur.execute("SELECT Token_id FROM token_device WHERE Device_id = %s", (device_id,))
-            token = cur.fetchall()
-            
-            token_data = jsonify({"device_id": device_id, "token": token}), 200
-            return token_data
+            return jsonify({"device_id": device_id, "token": new_token}), 200
         
+        except pymysql.IntegrityError as e:
+            conn.rollback()
+            if e.args[0] == 1062:  # Duplicate entry error
+                return jsonify({"error": "Device ID already exists"}), 409
+            else:
+                return jsonify({"error": "Database integrity error"}), 500
         except Exception as e:
             conn.rollback()
             return jsonify({"error": str(e)}), 500
         
         finally:
             cur.close()
-            conn.close() 
+            conn.close()
 
