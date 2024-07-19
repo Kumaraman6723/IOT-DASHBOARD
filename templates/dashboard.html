@@ -230,7 +230,6 @@
       <main>
         <div class="header" id="clickable-div">
           <div class="left">
-            <h1>Dashboard</h1>
             <ul class="breadcrumb"></ul>
           </div>
         </div>
@@ -311,7 +310,10 @@
             />
             <button id="request-device" type="submit">Request</button>
           </form>
-          <div id="device-list"></div>
+
+          <div id="pending-request" style="display: none">
+            <p>Pending Request: Please wait for admin to approve.</p>
+          </div>
         </div>
 
         <div id="add-device" class="content-section">
@@ -929,6 +931,23 @@
             console.error("Error fetching registered device count.", error);
           });
 
+        // Check the device request status
+        axios
+          .get("/dashboard/get_request_status")
+          .then((response) => {
+            if (response.data.status === "pending") {
+              document.getElementById("device-form1").style.display = "none";
+              document.getElementById("pending-request").style.display =
+                "block";
+            } else {
+              document.getElementById("device-form1").style.display = "block";
+              document.getElementById("pending-request").style.display = "none";
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching device request status.", error);
+          });
+
         document
           .getElementById("device-form1")
           .addEventListener("submit", function (event) {
@@ -976,8 +995,6 @@
                     "none";
                   document.getElementById("pending-request").style.display =
                     "block";
-
-                  // You can also trigger a flash message on the server-side if needed
                 }
               })
               .catch((error) => {
@@ -1010,27 +1027,10 @@
 
         // Remove the flash message after 2 seconds and reload the content section
         setTimeout(() => {
-          flashMessagesElement.innerHTML = ""; // Clear the flash message
-          reloadContentSection(); // Reload the content section
+          flashMessagesElement.innerHTML = "";
+          // Clear the flash message
+          // Reload the content section
         }, 2000);
-      }
-      function reloadContentSection() {
-        const contentSection = document.getElementById("content-section");
-
-        // Use fetch to reload the content (change the URL to your endpoint)
-        fetch("/dashboard/content")
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error("Network response was not ok");
-            }
-            return response.text();
-          })
-          .then((html) => {
-            contentSection.innerHTML = html; // Replace the content with the fetched HTML
-          })
-          .catch((error) => {
-            console.error("Error reloading content section:", error);
-          });
       }
     </script>
   </body>
