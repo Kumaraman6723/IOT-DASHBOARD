@@ -234,6 +234,15 @@
             <ul class="breadcrumb"></ul>
           </div>
         </div>
+        <div id="flash-messages">
+          {% with messages = get_flashed_messages() %} {% if messages %}
+          <ul class="flashes">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %} {% endwith %}
+        </div>
         <div id="dashboard-content" class="content-section">
           <h2>Dashboard Content</h2>
           <p>
@@ -355,6 +364,9 @@
           <div id="device-list1">
             <!-- Device data will be injected here -->
           </div>
+        </div>
+        <div id="pending-request" style="display: none">
+          You have a pending request. Kindly wait for Admin approval.
         </div>
       </main>
     </div>
@@ -822,11 +834,11 @@
                 },
               })
               .then((response) => {
-                alert("Device added successfully!");
+                displayFlashMessage("Device Added Successfully");
               })
               .catch((error) => {
                 console.error("There was an error adding the device:", error);
-                alert("Error adding device. Please try again.");
+                displayFlashMessage("Error adding device. Please try again.");
               });
           });
       });
@@ -891,42 +903,135 @@
         const deviceCountElement = document.getElementById("device-count");
         let deviceCount = parseInt(deviceCountElement.textContent, 10);
         deviceCount += delta;
+
         if (deviceCount < 0) deviceCount = 0;
+        if (deviceCount === 0) {
+          displayFlashMessage("Kindly Select at least 1 device");
+        }
         deviceCountElement.textContent = deviceCount;
         document.getElementById("device_count").value = deviceCount;
       }
 
       document.addEventListener("DOMContentLoaded", function () {
+        let registeredDevicesCount = 0;
+
+        // Fetch the registered device count
+        axios
+          .get("/dashboard/get_device_count")
+          .then((response) => {
+            if (response.data.registered_devices_count !== undefined) {
+              registeredDevicesCount = response.data.registered_devices_count;
+            } else {
+              console.error("Error fetching registered device count.");
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching registered device count.", error);
+          });
+
         document
           .getElementById("device-form1")
           .addEventListener("submit", function (event) {
             event.preventDefault();
 
             const formData = new FormData(event.target);
-            const csrfToken = formData.get("csrf_token"); // Extract the CSRF token
+            const csrfToken = formData.get("csrf_token");
+            const deviceCount = parseInt(formData.get("device_count"), 10);
 
-            // Convert form data to a plain object
+            if (deviceCount === 0) {
+              displayFlashMessage("Kindly Select at least 1 device");
+              return;
+            }
+
+            if (registeredDevicesCount == 0) {
+              displayFlashMessage(
+                "You don't have any devices registered on this mail"
+              );
+              return;
+            }
+
+            // Validate device count before submitting
+            if (deviceCount > registeredDevicesCount) {
+              displayFlashMessage(
+                `You do not have enough devices registered. You have ${registeredDevicesCount} devices registered.`,
+                "error"
+              );
+              return;
+            }
+
             const data = Object.fromEntries(formData.entries());
 
-            // Configure the Axios request with the CSRF token
             axios
               .post("/dashboard/request_device", data, {
                 headers: {
-                  "X-CSRFToken": csrfToken, // Include the CSRF token in headers
+                  "X-CSRFToken": csrfToken,
                 },
               })
               .then((response) => {
-                alert("Device request submitted successfully!");
+                if (response.data.redirect) {
+                  window.location.href = response.data.redirect;
+                } else {
+                  // Hide the form and show pending request message
+                  document.getElementById("device-form1").style.display =
+                    "none";
+                  document.getElementById("pending-request").style.display =
+                    "block";
+
+                  // You can also trigger a flash message on the server-side if needed
+                }
               })
               .catch((error) => {
-                console.error(
-                  "There was an error submitting the device request:",
-                  error
-                );
-                alert("Error submitting device request. Please try again.");
+                if (error.response && error.response.data) {
+                  displayFlashMessage(
+                    error.response.data.message,
+                    error.response.data.category
+                  );
+                } else {
+                  displayFlashMessage(
+                    "Error submitting device request. Please try again.",
+                    "error"
+                  );
+                }
               });
           });
       });
+
+      function displayFlashMessage(message, category) {
+        const flashMessagesElement = document.getElementById("flash-messages");
+        const ulElement = document.createElement("ul");
+        ulElement.className = "flashes";
+        const liElement = document.createElement("li");
+        liElement.className = category;
+        liElement.textContent = message;
+        ulElement.appendChild(liElement);
+
+        flashMessagesElement.innerHTML = ""; // Clear previous messages
+        flashMessagesElement.appendChild(ulElement);
+
+        // Remove the flash message after 2 seconds and reload the content section
+        setTimeout(() => {
+          flashMessagesElement.innerHTML = ""; // Clear the flash message
+          reloadContentSection(); // Reload the content section
+        }, 2000);
+      }
+      function reloadContentSection() {
+        const contentSection = document.getElementById("content-section");
+
+        // Use fetch to reload the content (change the URL to your endpoint)
+        fetch("/dashboard/content")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.text();
+          })
+          .then((html) => {
+            contentSection.innerHTML = html; // Replace the content with the fetched HTML
+          })
+          .catch((error) => {
+            console.error("Error reloading content section:", error);
+          });
+      }
     </script>
   </body>
 </html>
