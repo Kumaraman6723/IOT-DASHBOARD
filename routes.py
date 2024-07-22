@@ -1084,6 +1084,28 @@ def register_routes(app, oauth):
      conn.close()
 
      return jsonify([dict(row) for row in data])
+  
+   
+    
+    @app.route('/dashboard/check_device_added', methods=['GET'])
+    def check_device_added():
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     conn = get_db_connection()
+     cursor = conn.cursor()
+
+     query = 'SELECT COUNT(*) as count FROM devices WHERE email = %s'
+     cursor.execute(query, (email,))
+     result = cursor.fetchone()
+
+     cursor.close()
+     conn.close()
+ 
+     if result[0] > 0:
+        return jsonify(device_added=True)
+     else:
+        return jsonify(device_added=False)
+
+
 
 
 
