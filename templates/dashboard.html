@@ -157,6 +157,9 @@
         top: -5px;
         right: -5px;
       }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -181,15 +184,15 @@
             ><i class="bx bx-devices"></i>Request Device Data</a
           >
         </li>
-        <li>
-          <a href="#" id="add-device-link"
-            ><i class="bx bx-devices"></i>Add Device
+        <li class="add-device-link hidden">
+          <a href="#" id="add-device-link">
+            <i class="bx bx-devices"></i>Add Device
           </a>
         </li>
-        <li>
-          <a href="#" id="get-device-link"
-            ><i class="bx bx-devices"></i>Get Device Data</a
-          >
+        <li class="get-device-link hidden">
+          <a href="#" id="get-device-link">
+            <i class="bx bx-devices"></i>Get Device Data
+          </a>
         </li>
       </ul>
       <ul class="side-menu">
@@ -921,6 +924,55 @@
             }
           });
         }
+      });
+      document.addEventListener("DOMContentLoaded", function () {
+        // Function to show or hide menu items based on approval status
+        function updateMenuVisibility() {
+          axios
+            .get("/dashboard/get_request_status")
+            .then((response) => {
+              if (response.data.status === "approved") {
+                document
+                  .querySelector(".add-device-link")
+                  .classList.remove("hidden");
+              }
+              axios
+                .get("/dashboard/check_device_added")
+                .then((response) => {
+                  if (response.data.device_added) {
+                    document
+                      .querySelector(".get-device-link")
+                      .classList.remove("hidden");
+                  }
+                })
+                .catch((error) => {
+                  console.error("Error checking if device is added:", error);
+                });
+            })
+            .catch((error) => {
+              console.error("Error getting request status:", error);
+            });
+        }
+
+        // Check the user's status on page load
+        updateMenuVisibility();
+
+        // Event listener for the "Add Device" link
+        document
+          .getElementById("add-device-link")
+          .addEventListener("click", function () {
+            showSection("add-device");
+          });
+
+        // Event listener for the "Get Device Data" link
+        document
+          .getElementById("get-device-link")
+          .addEventListener("click", function () {
+            showSection("view-device-content");
+            fetchDevices();
+          });
+
+        // Existing event listeners and other JavaScript logic...
       });
     </script>
     <div id="loading-overlay" style="display: none">
