@@ -360,9 +360,12 @@
             <button type="submit">Submit</button>
           </form>
         </div>
-        <div id="view-device-content" class="content-section">
+        <div
+          id="view-device-content"
+          class="content-section"
+          style="display: none"
+        >
           <h2>View Devices Content</h2>
-
           <div id="device-list1">
             <!-- Device data will be injected here -->
           </div>
@@ -376,68 +379,69 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@latest"></script>
     <script>
-      const toggler = document.getElementById("theme-toggle");
-
-      toggler.addEventListener("change", function () {
-        if (this.checked) {
-          document.body.classList.add("dark");
-        } else {
-          document.body.classList.remove("dark");
-        }
-      });
-      const sideLinks = document.querySelectorAll(
-        ".sidebar .side-menu li a:not(.logout)"
-      );
-
-      sideLinks.forEach((item) => {
-        const li = item.parentElement;
-        item.addEventListener("click", () => {
-          sideLinks.forEach((i) => {
-            i.parentElement.classList.remove("active");
-          });
-          li.classList.add("active");
-        });
-      });
-
-      const menuBar = document.querySelector(".content nav .bx.bx-menu");
-      const sideBar = document.querySelector(".sidebar");
-
-      menuBar.addEventListener("click", () => {
-        sideBar.classList.toggle("close");
-      });
-
-      const searchBtn = document.querySelector(
-        ".content nav form .form-input button"
-      );
-      const searchBtnIcon = document.querySelector(
-        ".content nav form .form-input button .bx"
-      );
-      const searchForm = document.querySelector(".content nav form");
-
-      searchBtn.addEventListener("click", function (e) {
-        if (window.innerWidth < 576) {
-          e.preventDefault;
-          searchForm.classList.toggle("show");
-          if (searchForm.classList.contains("show")) {
-            searchBtnIcon.classList.replace("bx-search", "bx-x");
-          } else {
-            searchBtnIcon.classList.replace("bx-x", "bx-search");
-          }
-        }
-      });
-
-      window.addEventListener("resize", () => {
-        if (window.innerWidth < 768) {
-          sideBar.classList.add("close");
-        } else {
-          sideBar.classList.remove("close");
-        }
-        if (window.innerWidth > 576) {
-          searchBtnIcon.classList.replace("bx-x", "bx-search");
-          searchForm.classList.remove("show");
-        }
-      });
       document.addEventListener("DOMContentLoaded", function () {
+        const toggler = document.getElementById("theme-toggle");
+        const sideLinks = document.querySelectorAll(
+          ".sidebar .side-menu li a:not(.logout)"
+        );
+        const menuBar = document.querySelector(".content nav .bx.bx-menu");
+        const sideBar = document.querySelector(".sidebar");
+        const searchBtn = document.querySelector(
+          ".content nav form .form-input button"
+        );
+        const searchBtnIcon = document.querySelector(
+          ".content nav form .form-input button .bx"
+        );
+        const searchForm = document.querySelector(".content nav form");
+        const loadingOverlay = document.getElementById("loading-overlay");
+
+        toggler.addEventListener("change", function () {
+          if (this.checked) {
+            document.body.classList.add("dark");
+          } else {
+            document.body.classList.remove("dark");
+          }
+        });
+
+        sideLinks.forEach((item) => {
+          const li = item.parentElement;
+          item.addEventListener("click", () => {
+            sideLinks.forEach((i) => {
+              i.parentElement.classList.remove("active");
+            });
+            li.classList.add("active");
+          });
+        });
+
+        menuBar.addEventListener("click", () => {
+          sideBar.classList.toggle("close");
+        });
+
+        searchBtn.addEventListener("click", function (e) {
+          if (window.innerWidth < 576) {
+            e.preventDefault();
+            searchForm.classList.toggle("show");
+            if (searchForm.classList.contains("show")) {
+              searchBtnIcon.classList.replace("bx-search", "bx-x");
+            } else {
+              searchBtnIcon.classList.replace("bx-x", "bx-search");
+            }
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          if (window.innerWidth < 768) {
+            sideBar.classList.add("close");
+          } else {
+            sideBar.classList.remove("close");
+          }
+          if (window.innerWidth > 576) {
+            searchBtnIcon.classList.replace("bx-x", "bx-search");
+            searchForm.classList.remove("show");
+          }
+        });
+
+        loadLastActiveSection();
         const data = [
           {
             BC: "3.8",
@@ -749,7 +753,6 @@
           tableContainer.appendChild(table);
         }
 
-        const themeToggle = document.getElementById("theme-toggle");
         const notifIcon = document.querySelector(".notif");
         const notifContent = document.querySelector(".notif-content");
         const notificationList = document.getElementById("notification-list");
@@ -782,57 +785,47 @@
           .addEventListener("click", function () {
             showSection("device-content");
           });
+
         document
           .getElementById("add-device-link")
           .addEventListener("click", function () {
             showSection("add-device");
           });
+
         document
           .getElementById("get-device-link")
           .addEventListener("click", function () {
             showSection("view-device-content");
+            fetchDevices();
           });
-        function showSection(sectionId) {
-          const sections = document.querySelectorAll(".content-section");
-          sections.forEach((section) => {
-            section.style.display = section.id === sectionId ? "block" : "none";
-          });
-        }
 
-        showSection("dashboard-content");
-      });
-      document.addEventListener("DOMContentLoaded", function () {
         document
           .getElementById("loadProfile")
           .addEventListener("click", function (event) {
             event.preventDefault();
             window.location.href = "/profile-content";
           });
-      });
-      document
-        .getElementById("logout-link")
-        .addEventListener("click", function (e) {
-          e.preventDefault();
-          window.location.href = "/logout";
-        });
 
-      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("logout-link")
+          .addEventListener("click", function (e) {
+            e.preventDefault();
+            window.location.href = "/logout";
+          });
+
         document
           .getElementById("device-form")
           .addEventListener("submit", function (event) {
             event.preventDefault();
 
             const formData = new FormData(event.target);
-            const csrfToken = formData.get("csrf_token"); // Extract the CSRF token
-
-            // Convert form data to a plain object
+            const csrfToken = formData.get("csrf_token");
             const data = Object.fromEntries(formData.entries());
 
-            // Configure the Axios request with the CSRF token
             axios
               .post("/dashboard/add_device", data, {
                 headers: {
-                  "X-CSRFToken": csrfToken, // Include the CSRF token in headers
+                  "X-CSRFToken": csrfToken,
                 },
               })
               .then((response) => {
@@ -843,7 +836,38 @@
                 displayFlashMessage("Error adding device. Please try again.");
               });
           });
+        loadLastActiveSection();
+
+        document
+          .getElementById("get-device-link")
+          .addEventListener("click", function () {
+            showSection("view-device-content");
+            fetchDevices(); // Call fetchDevices function when the link is clicked
+          });
+
+        function showSection(sectionId) {
+          // Hide all sections
+          document.querySelectorAll(".content-section").forEach((section) => {
+            section.style.display = "none";
+          });
+          // Show the selected section
+          document.getElementById(sectionId).style.display = "block";
+        }
+
+        // Load last active section
+
+        loadLastActiveSection();
+        // Fetch devices
+        fetchDevices();
       });
+      function showSection(sectionId) {
+        const sections = document.querySelectorAll(".content-section");
+        sections.forEach((section) => {
+          section.style.display = section.id === sectionId ? "block" : "none";
+        });
+        saveCurrentSection(sectionId);
+        updateSidebarActiveState(sectionId);
+      }
       function fetchDevices() {
         axios
           .get("/dashboard/view_devices")
@@ -859,28 +883,28 @@
                 const deviceItem = document.createElement("div");
                 deviceItem.className = "device";
                 deviceItem.innerHTML = `
-                                <p>Entity Name: ${device.entityName}</p>
-                                <p>Device IMEI: ${device.deviceIMEI}</p>
-                                <p>SIM ICC ID: ${device.simICCId}</p>
-                                <p>Battery SL No: ${device.batterySLNo}</p>
-                                <p>Panel SL No: ${device.panelSLNo}</p>
-                                <p>Luminary SL No: ${device.luminarySLNo}</p>
-                                <p>Mobile No: ${device.mobileNo}</p>
-                                <p>District: ${device.district}</p>
-                                <p>Panchayat: ${device.panchayat}</p>
-                                <p>Block: ${device.block}</p>
-                                <p>Ward No: ${device.wardNo}</p>
-                                <p>Pole No: ${device.poleNo}</p>
-                                <p>Active: ${device.active}</p>
-                                <p>Installation Date: ${device.installationDate}</p>
-                            `;
+                  <p>Entity Name: ${device.entityName}</p>
+                  <p>Device IMEI: ${device.deviceIMEI}</p>
+                  <p>SIM ICC ID: ${device.simICCId}</p>
+                  <p>Battery SL No: ${device.batterySLNo}</p>
+                  <p>Panel SL No: ${device.panelSLNo}</p>
+                  <p>Luminary SL No: ${device.luminarySLNo}</p>
+                  <p>Mobile No: ${device.mobileNo}</p>
+                  <p>District: ${device.district}</p>
+                  <p>Panchayat: ${device.panchayat}</p>
+                  <p>Block: ${device.block}</p>
+                  <p>Ward No: ${device.wardNo}</p>
+                  <p>Pole No: ${device.poleNo}</p>
+                  <p>Active: ${device.active}</p>
+                  <p>Installation Date: ${device.installationDate}</p>
+                `;
                 deviceList.appendChild(deviceItem);
               });
             }
           })
           .catch((error) => {
             console.error("Error fetching devices:", error);
-            const deviceList = document.getElementById("device-list");
+            const deviceList = document.getElementById("device-list1");
             deviceList.innerHTML =
               "<p>Error fetching devices. Please try again later.</p>";
             if (error.response) {
@@ -897,7 +921,6 @@
       }
 
       // Fetch devices when the page loads
-      window.onload = fetchDevices;
 
       //request device access
 
@@ -1032,6 +1055,36 @@
           // Reload the content section
         }, 2000);
       }
+
+      function saveCurrentSection(sectionId) {
+        sessionStorage.setItem("currentDashboardSection", sectionId);
+      }
+
+      function loadLastActiveSection() {
+        const lastSection = sessionStorage.getItem("currentDashboardSection");
+        if (lastSection) {
+          showSection(lastSection);
+        } else {
+          showSection("dashboard-content");
+        }
+      }
+
+      function updateSidebarActiveState(sectionId) {
+        const sideLinks = document.querySelectorAll(
+          ".sidebar .side-menu li a:not(.logout)"
+        );
+        sideLinks.forEach((item) => {
+          const li = item.parentElement;
+          if (item.id === `${sectionId.replace("-content", "")}-link`) {
+            li.classList.add("active");
+          } else {
+            li.classList.remove("active");
+          }
+        });
+      }
     </script>
+    <div id="loading-overlay" style="display: none">
+      <div class="spinner"></div>
+    </div>
   </body>
 </html>
