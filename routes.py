@@ -1,5 +1,6 @@
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import pymysql
 from models import fetch_email, fetch_email_from_user, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
 from forms import AddDeviceForm, RegisterForm, RequestDeviceForm, UpdateProfileForm, VerificationForm, OTPForm, ForgetPass
@@ -11,7 +12,7 @@ from authlib.integrations.base_client import OAuthError
 import requests
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import logging
 import random
@@ -790,8 +791,10 @@ def register_routes(app, oauth):
      except Exception as e:
         return jsonify({"error": str(e)})
      finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
      devices_data = []
      for device in devices:
@@ -815,18 +818,37 @@ def register_routes(app, oauth):
 
      return jsonify(devices_data)
 
+
  
 
     @app.route('/dashboard/request_device', methods=['GET', 'POST'])
     @login_required
     def request_device():
      form = RequestDeviceForm()
-     if form.validate_on_submit():
-        email = session.get("login_email") or session.get("user", {}).get("email")
-        if not email:
-            flash("User email not found in session.", "error")
-            return redirect(url_for("login"))
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        flash("User email not found in session.", "error")
+        return redirect(url_for("login"))
 
+    # Check if there's a pending request for this email
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT status FROM device_requests WHERE email = %s AND status = 'pending'
+        """, (email,))
+        pending_request = cur.fetchone()
+        
+        if pending_request:
+            return jsonify({"status": "pending"}), 200
+        
+        cur.close()
+        conn.close()
+     except Exception as e:
+        logging.error(f"Error checking pending request for email {email}: {e}")
+        return jsonify({"error": "An error occurred while checking pending requests."}), 500
+
+     if form.validate_on_submit():
         device_count = form.device_count.data
 
         try:
@@ -887,6 +909,31 @@ def register_routes(app, oauth):
      except Exception as e:
         logging.error(f"Error fetching device count for email {email}: {e}")
         return jsonify({"error": "An error occurred while fetching the device count."}), 500
+    
+    @app.route('/dashboard/get_request_status', methods=['GET'])
+    @login_required
+    def get_request_status():
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        return jsonify({"error": "User email not found in session."}), 400
+
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT status FROM device_requests WHERE email = %s ORDER BY created_at DESC LIMIT 1
+        """, (email,))
+        request_status = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if request_status:
+            return jsonify({"status": request_status[0]})
+        else:
+            return jsonify({"status": "none"})
+     except Exception as e:
+        logging.error(f"Error fetching request status for email {email}: {e}")
+        return jsonify({"error": "An error occurred while fetching the request status."}), 500
 
   
     @app.route('/admindashboard/approve_device_requests', methods=['GET', 'POST'])
@@ -914,12 +961,21 @@ def register_routes(app, oauth):
             cur.execute(sql_query, sql_params)
             conn.commit()
 
+            # Fetch device IDs from token_device table linked with the same email
+            cur.execute("SELECT device_id FROM token_device WHERE email = %s", (email,))
+            device_ids = cur.fetchall()
+
+            logging.info(f"Device IDs: {device_ids}")
+
             # Log action
             log_action(email, f"Device request {approval_status}")
 
             # Send webhook
             if approval_status == 'approved':
                 send_webhook("device_request_approved", {"request_id": request_id, "email": email})
+                # Create tables for each approved device
+                for device_id in device_ids:
+                    create_device_table(device_id[0])  # Use device_id[0] as device_id is a tuple
             elif approval_status == 'rejected':
                 send_webhook("device_request_rejected", {"request_id": request_id, "email": email})
 
@@ -936,14 +992,98 @@ def register_routes(app, oauth):
         # Fetch pending requests
         cur.execute("SELECT id, email, device_count FROM device_requests WHERE status = 'pending'")
         pending_requests = cur.fetchall()
+        pending_requests_dicts = [dict(zip([key[0] for key in cur.description], row)) for row in pending_requests]
+
         cur.close()
         conn.close()
-        return jsonify(pending_requests), 200
+        return jsonify(pending_requests_dicts), 200
      except Exception as e:
         logging.error(f"Error fetching pending device requests: {str(e)}")
         return jsonify({"message": "An error occurred while fetching pending device requests."}), 500
 
 
+    def create_device_table(device_id):
+     conn = get_db_connection()
+     cursor = conn.cursor()
+     cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS device_{device_id} (
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            BC REAL,
+            BCPr REAL,
+            BDPr REAL,
+            BF REAL,
+            BP REAL,
+            BTem REAL,
+            BV REAL,
+            BrL REAL,
+            GIS TEXT,
+            GPSP REAL,
+            HEn REAL,
+            LC REAL,
+            LF REAL,
+            LP REAL,
+            LSt REAL,
+            LV REAL,
+            MF REAL,
+            PC REAL,
+            PP REAL,
+            PV REAL,
+            SSL_ID TEXT,
+            SSt INTEGER,
+            S_ID TEXT
+        )
+    ''')
+     conn.commit()
+     conn.close()
+ 
+    
+
+    @app.route('/device_data', methods=['POST'])
+    def device_data():
+     data = request.json
+     device_id = data.get('D_ID')
+    
+     if not device_id:
+        return jsonify({'message': 'Device ID is required'}), 400
+
+     create_device_table(device_id)
+ 
+     conn = get_db_connection()
+     cursor = conn.cursor()
+    
+     placeholders = ', '.join('?' * len(data.keys()))
+     columns = ', '.join(data.keys())
+     sql = f'INSERT INTO device_{device_id} ({columns}) VALUES ({placeholders})'
+     cursor.execute(sql, list(data.values()))
+    
+     conn.commit()
+     conn.close()
+
+     return jsonify({'message': f'Data for device {device_id} saved'}), 200
+
+    @app.route('/analytics', methods=['GET'])
+    def analytics():
+     conn = get_db_connection()
+     cursor = conn.cursor()
+     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'device_%'")
+     device_tables = [row['name'] for row in cursor.fetchall()]
+     conn.close()
+
+     return render_template('analytics.html', devices=device_tables)
+
+    @app.route('/fetch_device_data/<device_id>', methods=['GET'])
+    def fetch_device_data(device_id):
+     conn = get_db_connection()
+     cursor = conn.cursor()
+     one_month_ago = datetime.now() - timedelta(days=30)
+     cursor.execute(f'''
+        SELECT * FROM device_{device_id}
+        WHERE timestamp >= ?
+     ''', (one_month_ago,))
+     data = cursor.fetchall()
+     conn.close()
+
+     return jsonify([dict(row) for row in data])
 
 
 
