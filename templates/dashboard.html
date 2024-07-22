@@ -856,33 +856,32 @@
 
         // Load last active section
 
-        loadLastActiveSection();
         // Fetch devices
         fetchDevices();
-      });
-      function showSection(sectionId) {
-        const sections = document.querySelectorAll(".content-section");
-        sections.forEach((section) => {
-          section.style.display = section.id === sectionId ? "block" : "none";
-        });
-        saveCurrentSection(sectionId);
-        updateSidebarActiveState(sectionId);
-      }
-      function fetchDevices() {
-        axios
-          .get("/dashboard/view_devices")
-          .then((response) => {
-            const devices = response.data;
-            const deviceList = document.getElementById("device-list1");
-            deviceList.innerHTML = "";
 
-            if (devices.error) {
-              deviceList.innerHTML = `<p>${devices.error}</p>`;
-            } else {
-              devices.forEach((device) => {
-                const deviceItem = document.createElement("div");
-                deviceItem.className = "device";
-                deviceItem.innerHTML = `
+        function showSection(sectionId) {
+          const sections = document.querySelectorAll(".content-section");
+          sections.forEach((section) => {
+            section.style.display = section.id === sectionId ? "block" : "none";
+          });
+          saveCurrentSection(sectionId);
+          updateSidebarActiveState(sectionId);
+        }
+        function fetchDevices() {
+          axios
+            .get("/dashboard/view_devices")
+            .then((response) => {
+              const devices = response.data;
+              const deviceList = document.getElementById("device-list1");
+              deviceList.innerHTML = "";
+
+              if (devices.error) {
+                deviceList.innerHTML = `<p>${devices.error}</p>`;
+              } else {
+                devices.forEach((device) => {
+                  const deviceItem = document.createElement("div");
+                  deviceItem.className = "device";
+                  deviceItem.innerHTML = `
                   <p>Entity Name: ${device.entityName}</p>
                   <p>Device IMEI: ${device.deviceIMEI}</p>
                   <p>SIM ICC ID: ${device.simICCId}</p>
@@ -898,190 +897,193 @@
                   <p>Active: ${device.active}</p>
                   <p>Installation Date: ${device.installationDate}</p>
                 `;
-                deviceList.appendChild(deviceItem);
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching devices:", error);
-            const deviceList = document.getElementById("device-list1");
-            deviceList.innerHTML =
-              "<p>Error fetching devices. Please try again later.</p>";
-            if (error.response) {
-              console.error("Response data:", error.response.data);
-              console.error("Response status:", error.response.status);
-              console.error("Response headers:", error.response.headers);
-            } else if (error.request) {
-              console.error("Request data:", error.request);
-            } else {
-              console.error("Error message:", error.message);
-            }
-            console.error("Config:", error.config);
-          });
-      }
-
-      // Fetch devices when the page loads
-
-      //request device access
-
-      function changeDeviceCount(delta) {
-        const deviceCountElement = document.getElementById("device-count");
-        let deviceCount = parseInt(deviceCountElement.textContent, 10);
-        deviceCount += delta;
-
-        if (deviceCount < 0) deviceCount = 0;
-        if (deviceCount === 0) {
-          displayFlashMessage("Kindly Select at least 1 device");
+                  deviceList.appendChild(deviceItem);
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("Error fetching devices:", error);
+              const deviceList = document.getElementById("device-list1");
+              deviceList.innerHTML =
+                "<p>Error fetching devices. Please try again later.</p>";
+              if (error.response) {
+                console.error("Response data:", error.response.data);
+                console.error("Response status:", error.response.status);
+                console.error("Response headers:", error.response.headers);
+              } else if (error.request) {
+                console.error("Request data:", error.request);
+              } else {
+                console.error("Error message:", error.message);
+              }
+              console.error("Config:", error.config);
+            });
         }
-        deviceCountElement.textContent = deviceCount;
-        document.getElementById("device_count").value = deviceCount;
-      }
 
-      window.onload = function () {
-        let registeredDevicesCount = 0;
+        // Fetch devices when the page loads
 
-        // Fetch the registered device count
-        axios
-          .get("/dashboard/get_device_count")
-          .then((response) => {
-            if (response.data.registered_devices_count !== undefined) {
-              registeredDevicesCount = response.data.registered_devices_count;
-            } else {
-              console.error("Error fetching registered device count.");
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching registered device count.", error);
-          });
+        //request device access
 
-        // Check the device request status
-        axios
-          .get("/dashboard/get_request_status")
-          .then((response) => {
-            if (response.data.status === "pending") {
-              document.getElementById("device-form1").style.display = "none";
-              document.getElementById("pending-request").style.display =
-                "block";
-            } else {
-              document.getElementById("device-form1").style.display = "block";
-              document.getElementById("pending-request").style.display = "none";
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching device request status.", error);
-          });
+        function changeDeviceCount(delta) {
+          const deviceCountElement = document.getElementById("device-count");
+          let deviceCount = parseInt(deviceCountElement.textContent, 10);
+          deviceCount += delta;
 
-        document
-          .getElementById("device-form1")
-          .addEventListener("submit", function (event) {
-            event.preventDefault();
-
-            const formData = new FormData(event.target);
-            const csrfToken = formData.get("csrf_token");
-            const deviceCount = parseInt(formData.get("device_count"), 10);
-
-            if (deviceCount === 0) {
-              displayFlashMessage("Kindly Select at least 1 device");
-              return;
-            }
-
-            if (registeredDevicesCount == 0) {
-              displayFlashMessage(
-                "You don't have any devices registered on this mail"
-              );
-              return;
-            }
-
-            // Validate device count before submitting
-            if (deviceCount > registeredDevicesCount) {
-              displayFlashMessage(
-                `You do not have enough devices registered. You have ${registeredDevicesCount} devices registered.`,
-                "error"
-              );
-              return;
-            }
-
-            const data = Object.fromEntries(formData.entries());
-
-            axios
-              .post("/dashboard/request_device", data, {
-                headers: {
-                  "X-CSRFToken": csrfToken,
-                },
-              })
-              .then((response) => {
-                if (response.data.redirect) {
-                  window.location.href = response.data.redirect;
-                } else {
-                  // Hide the form and show pending request message
-                  document.getElementById("device-form1").style.display =
-                    "none";
-                  document.getElementById("pending-request").style.display =
-                    "block";
-                }
-              })
-              .catch((error) => {
-                if (error.response && error.response.data) {
-                  displayFlashMessage(
-                    error.response.data.message,
-                    error.response.data.category
-                  );
-                } else {
-                  displayFlashMessage(
-                    "Error submitting device request. Please try again.",
-                    "error"
-                  );
-                }
-              });
-          });
-      };
-
-      function displayFlashMessage(message, category) {
-        const flashMessagesElement = document.getElementById("flash-messages");
-        const ulElement = document.createElement("ul");
-        ulElement.className = "flashes";
-        const liElement = document.createElement("li");
-        liElement.className = category;
-        liElement.textContent = message;
-        ulElement.appendChild(liElement);
-
-        flashMessagesElement.innerHTML = ""; // Clear previous messages
-        flashMessagesElement.appendChild(ulElement);
-
-        // Remove the flash message after 2 seconds and reload the content section
-        setTimeout(() => {
-          flashMessagesElement.innerHTML = "";
-          // Clear the flash message
-          // Reload the content section
-        }, 2000);
-      }
-
-      function saveCurrentSection(sectionId) {
-        sessionStorage.setItem("currentDashboardSection", sectionId);
-      }
-
-      function loadLastActiveSection() {
-        const lastSection = sessionStorage.getItem("currentDashboardSection");
-        if (lastSection) {
-          showSection(lastSection);
-        } else {
-          showSection("dashboard-content");
-        }
-      }
-
-      function updateSidebarActiveState(sectionId) {
-        const sideLinks = document.querySelectorAll(
-          ".sidebar .side-menu li a:not(.logout)"
-        );
-        sideLinks.forEach((item) => {
-          const li = item.parentElement;
-          if (item.id === `${sectionId.replace("-content", "")}-link`) {
-            li.classList.add("active");
-          } else {
-            li.classList.remove("active");
+          if (deviceCount < 0) deviceCount = 0;
+          if (deviceCount === 0) {
+            displayFlashMessage("Kindly Select at least 1 device");
           }
-        });
-      }
+          deviceCountElement.textContent = deviceCount;
+          document.getElementById("device_count").value = deviceCount;
+        }
+
+        window.onload = function () {
+          let registeredDevicesCount = 0;
+
+          // Fetch the registered device count
+          axios
+            .get("/dashboard/get_device_count")
+            .then((response) => {
+              if (response.data.registered_devices_count !== undefined) {
+                registeredDevicesCount = response.data.registered_devices_count;
+              } else {
+                console.error("Error fetching registered device count.");
+              }
+            })
+            .catch((error) => {
+              console.error("Error fetching registered device count.", error);
+            });
+
+          // Check the device request status
+          axios
+            .get("/dashboard/get_request_status")
+            .then((response) => {
+              if (response.data.status === "pending") {
+                document.getElementById("device-form1").style.display = "none";
+                document.getElementById("pending-request").style.display =
+                  "block";
+              } else {
+                document.getElementById("device-form1").style.display = "block";
+                document.getElementById("pending-request").style.display =
+                  "none";
+              }
+            })
+            .catch((error) => {
+              console.error("Error fetching device request status.", error);
+            });
+
+          document
+            .getElementById("device-form1")
+            .addEventListener("submit", function (event) {
+              event.preventDefault();
+
+              const formData = new FormData(event.target);
+              const csrfToken = formData.get("csrf_token");
+              const deviceCount = parseInt(formData.get("device_count"), 10);
+
+              if (deviceCount === 0) {
+                displayFlashMessage("Kindly Select at least 1 device");
+                return;
+              }
+
+              if (registeredDevicesCount == 0) {
+                displayFlashMessage(
+                  "You don't have any devices registered on this mail"
+                );
+                return;
+              }
+
+              // Validate device count before submitting
+              if (deviceCount > registeredDevicesCount) {
+                displayFlashMessage(
+                  `You do not have enough devices registered. You have ${registeredDevicesCount} devices registered.`,
+                  "error"
+                );
+                return;
+              }
+
+              const data = Object.fromEntries(formData.entries());
+
+              axios
+                .post("/dashboard/request_device", data, {
+                  headers: {
+                    "X-CSRFToken": csrfToken,
+                  },
+                })
+                .then((response) => {
+                  if (response.data.redirect) {
+                    window.location.href = response.data.redirect;
+                  } else {
+                    // Hide the form and show pending request message
+                    document.getElementById("device-form1").style.display =
+                      "none";
+                    document.getElementById("pending-request").style.display =
+                      "block";
+                  }
+                })
+                .catch((error) => {
+                  if (error.response && error.response.data) {
+                    displayFlashMessage(
+                      error.response.data.message,
+                      error.response.data.category
+                    );
+                  } else {
+                    displayFlashMessage(
+                      "Error submitting device request. Please try again.",
+                      "error"
+                    );
+                  }
+                });
+            });
+        };
+
+        function displayFlashMessage(message, category) {
+          const flashMessagesElement =
+            document.getElementById("flash-messages");
+          const ulElement = document.createElement("ul");
+          ulElement.className = "flashes";
+          const liElement = document.createElement("li");
+          liElement.className = category;
+          liElement.textContent = message;
+          ulElement.appendChild(liElement);
+
+          flashMessagesElement.innerHTML = ""; // Clear previous messages
+          flashMessagesElement.appendChild(ulElement);
+
+          // Remove the flash message after 2 seconds and reload the content section
+          setTimeout(() => {
+            flashMessagesElement.innerHTML = "";
+            // Clear the flash message
+            // Reload the content section
+          }, 2000);
+        }
+
+        function saveCurrentSection(sectionId) {
+          sessionStorage.setItem("currentDashboardSection", sectionId);
+        }
+
+        function loadLastActiveSection() {
+          const lastSection = sessionStorage.getItem("currentDashboardSection");
+          if (lastSection) {
+            showSection(lastSection);
+          } else {
+            showSection("dashboard-content");
+          }
+        }
+
+        function updateSidebarActiveState(sectionId) {
+          const sideLinks = document.querySelectorAll(
+            ".sidebar .side-menu li a:not(.logout)"
+          );
+          sideLinks.forEach((item) => {
+            const li = item.parentElement;
+            if (item.id === `${sectionId.replace("-content", "")}-link`) {
+              li.classList.add("active");
+            } else {
+              li.classList.remove("active");
+            }
+          });
+        }
+      });
     </script>
     <div id="loading-overlay" style="display: none">
       <div class="spinner"></div>
