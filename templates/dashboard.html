@@ -253,6 +253,9 @@
           <h2>Analytics Content</h2>
           <select id="deviceSelect" onchange="fetchDeviceData()">
             <option value="">Select Device</option>
+            {% for device in devices %}
+            <option value="{{ device }}">{{ device }}</option>
+            {% endfor %}
           </select>
 
           <div class="chart-container">
@@ -365,24 +368,32 @@
             <button type="submit">Submit</button>
           </form>
         </div>
-        <div
-          id="view-device-content"
-          class="content-section"
-          style="display: none"
-        >
+        <div id="view-device-content" class="content-section">
           <h2>View Devices Content</h2>
+
           <div id="device-list1">
             <!-- Device data will be injected here -->
           </div>
-        </div>
-        <div id="pending-request" style="display: none">
-          You have a pending request. Kindly wait for Admin approval.
         </div>
       </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@latest"></script>
+    <script>
+      function changeDeviceCount(delta) {
+        const deviceCountElement = document.getElementById("device-count");
+        let deviceCount = parseInt(deviceCountElement.textContent, 10);
+        deviceCount += delta;
+
+        if (deviceCount < 0) deviceCount = 0;
+        if (deviceCount === 0) {
+          displayFlashMessage("Kindly Select at least 1 device");
+        }
+        deviceCountElement.textContent = deviceCount;
+        document.getElementById("device_count").value = deviceCount;
+      }
+    </script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const toggler = document.getElementById("theme-toggle");
@@ -762,19 +773,6 @@
         // Fetch devices when the page loads
 
         //request device access
-
-        function changeDeviceCount(delta) {
-          const deviceCountElement = document.getElementById("device-count");
-          let deviceCount = parseInt(deviceCountElement.textContent, 10);
-          deviceCount += delta;
-
-          if (deviceCount < 0) deviceCount = 0;
-          if (deviceCount === 0) {
-            displayFlashMessage("Kindly Select at least 1 device");
-          }
-          deviceCountElement.textContent = deviceCount;
-          document.getElementById("device_count").value = deviceCount;
-        }
 
         window.onload = function () {
           let registeredDevicesCount = 0;
