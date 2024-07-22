@@ -817,7 +817,7 @@
           .getElementById("device-form")
           .addEventListener("submit", function (event) {
             event.preventDefault();
-
+            loadingOverlay.style.display = "flex";
             const formData = new FormData(event.target);
             const csrfToken = formData.get("csrf_token");
             const data = Object.fromEntries(formData.entries());
@@ -829,9 +829,11 @@
                 },
               })
               .then((response) => {
+                loadingOverlay.style.display = "none";
                 displayFlashMessage("Device Added Successfully");
               })
               .catch((error) => {
+                loadingOverlay.style.display = "none";
                 console.error("There was an error adding the device:", error);
                 displayFlashMessage("Error adding device. Please try again.");
               });
