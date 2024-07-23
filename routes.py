@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, make_response, render_template, request, redirect, url_for, session, flash, jsonify
 import pymysql
 from models import fetch_email, fetch_email_from_user, recover_passkey, fetch_users, get_db_connection
 from email_service import send_email
@@ -1108,6 +1108,22 @@ def register_routes(app, oauth):
         return jsonify(device_added=True)
      else:
         return jsonify(device_added=False)
+    
+    @app.route('/data', methods=["GET"])
+    def data():
+    # Data Format
+    # [TIME, Temperature, Humidity]
+     Temperature = random() * 100
+     Humidity = random() * 55
+
+     data = [time() * 1000, Temperature, Humidity]
+
+     response = make_response(json.dumps(data))
+     response.content_type = 'application/json'
+
+     return response
+ 
+   
 
 
 
