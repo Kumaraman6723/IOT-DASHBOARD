@@ -157,6 +157,11 @@
         top: -5px;
         right: -5px;
       }
+      .status-message {
+        color: red;
+        font-size: 1em;
+        margin-top: 5px;
+      }
       .hidden {
         display: none;
       }
@@ -174,26 +179,24 @@
             ><i class="bx bxs-dashboard"></i>Dashboard</a
           >
         </li>
-        <li class="active">
-          <a href="#" id="analytics-link"
-            ><i class="bx bx-analyse"></i>Analytics</a
-          >
-        </li>
+
         <li>
           <a href="#" id="request-device-link"
             ><i class="bx bx-devices"></i>Request Device Data</a
           >
         </li>
-        <li class="add-device-link hidden">
-          <a href="#" id="add-device-link">
-            <i class="bx bx-devices"></i>Add Device
-          </a>
-        </li>
-        <li class="get-device-link hidden">
-          <a href="#" id="get-device-link">
-            <i class="bx bx-devices"></i>Get Device Data
-          </a>
-        </li>
+        <ul>
+          <li class="add-device-link">
+            <a href="#" id="add-device-link">
+              <i class="bx bx-devices"></i>Add Device
+            </a>
+          </li>
+          <li class="get-device-link">
+            <a href="#" id="get-device-link">
+              <i class="bx bx-devices"></i>Get Device Data
+            </a>
+          </li>
+        </ul>
       </ul>
       <ul class="side-menu">
         <li>
@@ -327,11 +330,18 @@
           </div>
         </div>
 
-        <div id="add-device" class="content-section">
+        <div id="add-device" class="content-section hidden">
           <h2>Add Devices</h2>
-          <form id="device-form" method="POST" action="/dashboard/add_device">
+          <div id="request-device-message" class="status-message hidden">
+            You need to request devices to access this section.
+          </div>
+          <form
+            id="device-form"
+            method="POST"
+            action="/dashboard/add_device"
+            class="hidden"
+          >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
             <label for="entityName">Entity Name</label>
             <input type="text" id="entityName" name="entityName" required />
             <label for="deviceIMEI">Device IMEI</label>
@@ -369,11 +379,20 @@
               required
             />
             <button type="submit">Submit</button>
+            <div
+              id="loading-overlay"
+              class="loading-overlay"
+              style="display: none"
+            >
+              <div class="spinner"></div>
+            </div>
           </form>
         </div>
-        <div id="view-device-content" class="content-section">
+        <div id="view-device-content" class="content-section hidden">
           <h2>View Devices Content</h2>
-
+          <div id="add-device-message" class="status-message hidden">
+            You need to add a device to access this section.
+          </div>
           <div id="device-list1">
             <!-- Device data will be injected here -->
           </div>
@@ -626,11 +645,11 @@
             showSection("dashboard-content");
           });
 
-        document
+        /*    document
           .getElementById("analytics-link")
           .addEventListener("click", function () {
             showSection("analytics-content");
-          });
+          });*/
 
         document
           .getElementById("request-device-link")
@@ -669,7 +688,10 @@
           .getElementById("device-form")
           .addEventListener("submit", function (event) {
             event.preventDefault();
+
+            const loadingOverlay = document.getElementById("loading-overlay");
             loadingOverlay.style.display = "flex";
+
             const formData = new FormData(event.target);
             const csrfToken = formData.get("csrf_token");
             const data = Object.fromEntries(formData.entries());
@@ -683,6 +705,7 @@
               .then((response) => {
                 loadingOverlay.style.display = "none";
                 displayFlashMessage("Device Added Successfully");
+                location.reload();
               })
               .catch((error) => {
                 loadingOverlay.style.display = "none";
@@ -690,13 +713,14 @@
                 displayFlashMessage("Error adding device. Please try again.");
               });
           });
+
         loadLastActiveSection();
 
         document
           .getElementById("get-device-link")
           .addEventListener("click", function () {
             showSection("view-device-content");
-            fetchDevices(); // Call fetchDevices function when the link is clicked
+            // Call fetchDevices function when the link is clicked
           });
 
         function showSection(sectionId) {
@@ -910,23 +934,34 @@
         }
       });
       document.addEventListener("DOMContentLoaded", function () {
-        // Function to show or hide menu items based on approval status
+        // Function to show or hide messages and forms based on approval status
         function updateMenuVisibility() {
           axios
             .get("/dashboard/get_request_status")
             .then((response) => {
+              const requestDeviceMessage = document.getElementById(
+                "request-device-message"
+              );
+              const deviceForm = document.getElementById("device-form");
+
               if (response.data.status === "approved") {
-                document
-                  .querySelector(".add-device-link")
-                  .classList.remove("hidden");
+                requestDeviceMessage.classList.add("hidden");
+                deviceForm.classList.remove("hidden");
+              } else {
+                requestDeviceMessage.classList.remove("hidden");
+                deviceForm.classList.add("hidden");
               }
+
               axios
                 .get("/dashboard/check_device_added")
                 .then((response) => {
+                  const addDeviceMessage =
+                    document.getElementById("add-device-message");
+
                   if (response.data.device_added) {
-                    document
-                      .querySelector(".get-device-link")
-                      .classList.remove("hidden");
+                    addDeviceMessage.classList.add("hidden");
+                  } else {
+                    addDeviceMessage.classList.remove("hidden");
                   }
                 })
                 .catch((error) => {
@@ -944,20 +979,47 @@
         // Event listener for the "Add Device" link
         document
           .getElementById("add-device-link")
-          .addEventListener("click", function () {
-            showSection("add-device");
+          .addEventListener("click", function (event) {
+            const requestDeviceMessage = document.getElementById(
+              "request-device-message"
+            );
+            if (requestDeviceMessage.classList.contains("hidden")) {
+              showSection("add-device");
+            } else {
+              alert("You need to request devices to access this section.");
+            }
+            event.preventDefault();
           });
 
         // Event listener for the "Get Device Data" link
         document
           .getElementById("get-device-link")
-          .addEventListener("click", function () {
-            showSection("view-device-content");
-            fetchDevices();
+          .addEventListener("click", function (event) {
+            const addDeviceMessage =
+              document.getElementById("add-device-message");
+            if (addDeviceMessage.classList.contains("hidden")) {
+              showSection("view-device-content");
+              fetchDevices();
+            } else {
+              alert("You need to add a device to access this section.");
+            }
+            event.preventDefault();
           });
 
         // Existing event listeners and other JavaScript logic...
       });
+
+      function showSection(sectionId) {
+        // Hide all content sections
+        const sections = document.querySelectorAll(".content-section");
+        sections.forEach((section) => {
+          section.classList.add("hidden");
+        });
+
+        // Show the selected section
+        const section = document.getElementById(sectionId);
+        section.classList.remove("hidden");
+      }
     </script>
     <div id="loading-overlay" style="display: none">
       <div class="spinner"></div>
