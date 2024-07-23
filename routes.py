@@ -1109,23 +1109,31 @@ def register_routes(app, oauth):
      else:
         return jsonify(device_added=False)
     
-    @app.route('/data', methods=["GET"])
-    def data():
-    # Data Format
-    # [TIME, Temperature, Humidity]
-     Temperature = random() * 100
-     Humidity = random() * 55
+    def get_ist_time():
+     utc_time = datetime.utcnow()
+     ist_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Asia/Kolkata'))
+     return ist_time.isoformat()
 
-     data = [time() * 1000, Temperature, Humidity]
+    @app.route('/data')
+    def data():
+    # Data Format: [TIME, Temperature, Humidity]
+     temperature = random.random() * 100
+     humidity = random.random() * 55
+
+     data = [time() * 1000, temperature, humidity]
 
      response = make_response(json.dumps(data))
      response.content_type = 'application/json'
 
      return response
- 
-   
 
-
+    @app.route('/data1')
+    def data1():
+     return jsonify(
+        time=get_ist_time(),
+        voltage=round(random.uniform(5, 15), 1),
+        current=round(random.uniform(1, 6), 1)
+     )
 
 
 
