@@ -13,6 +13,38 @@
     />
     <title>Admin Dashboard</title>
     <style>
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        display: none;
+      }
+
+      .loading-overlay .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #007bff;
+        animation: spin 1s ease infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
       body {
         font-family: Arial, sans-serif;
         margin: 20px;
@@ -74,6 +106,10 @@
     </style>
   </head>
   <body>
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+
     <div class="sidebar">
       <a href="#" class="logo">
         <i class="bx bx-code-alt"></i>
@@ -195,6 +231,8 @@
         const settingsContent = document.getElementById("settings-content");
         const approveContent = document.getElementById("approve-content");
 
+        const loadingOverlay = document.getElementById("loading-overlay");
+
         let currentPage = 1;
 
         dashboardLink.addEventListener("click", function (e) {
@@ -244,7 +282,16 @@
           section.style.display = "block";
         }
 
+        function showLoading() {
+          loadingOverlay.style.display = "flex";
+        }
+
+        function hideLoading() {
+          loadingOverlay.style.display = "none";
+        }
+
         function loadWebhooksData(page) {
+          showLoading();
           axios
             .get(`/webhooks?page=${page}&limit=10`)
             .then((response) => {
@@ -255,11 +302,11 @@
               webhooks.forEach((webhook) => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-                  <td>${webhook.email}</td>
-                  <td>${webhook.event}</td>
-                  <td>${JSON.stringify(webhook.data)}</td>
-                  <td>${webhook.created_at}</td>
-                `;
+            <td>${webhook.email}</td>
+            <td>${webhook.event}</td>
+            <td>${JSON.stringify(webhook.data)}</td>
+            <td>${webhook.created_at}</td>
+          `;
                 tableBody.appendChild(row);
               });
 
@@ -269,10 +316,14 @@
             })
             .catch((error) => {
               console.error("Error loading webhooks data:", error);
+            })
+            .finally(() => {
+              hideLoading();
             });
         }
 
         function loadRequests() {
+          showLoading();
           axios
             .get("/admindashboard/approve_device_requests")
             .then((response) => {
@@ -283,19 +334,22 @@
               requests.forEach((request) => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-          <td>${request.email}</td>
-          <td>${request.device_count}</td>
-          <td>
-            <button onclick="processRequest(${request.id}, 'approved', '${request.email}')">Approve</button>
-            <button onclick="processRequest(${request.id}, 'rejected', '${request.email}')">Reject</button>
-          </td>
-        `;
+            <td>${request.email}</td>
+            <td>${request.device_count}</td>
+            <td>
+              <button onclick="processRequest(${request.id}, 'approved', '${request.email}')">Approve</button>
+              <button onclick="processRequest(${request.id}, 'rejected', '${request.email}')">Reject</button>
+            </td>
+          `;
                 requestTableBody.appendChild(row);
               });
             })
             .catch((error) => {
               console.error("Error loading requests:", error);
               alert("An error occurred while loading device requests.");
+            })
+            .finally(() => {
+              hideLoading();
             });
         }
 
@@ -303,6 +357,7 @@
           const csrfToken = document.querySelector(
             'input[name="csrf_token"]'
           ).value;
+          showLoading();
           axios
             .post(
               "/admindashboard/approve_device_requests",
@@ -324,6 +379,9 @@
             .catch((error) => {
               console.error("Error processing request:", error);
               alert("An error occurred while processing the device request.");
+            })
+            .finally(() => {
+              hideLoading();
             });
         };
 
