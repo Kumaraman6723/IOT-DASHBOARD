@@ -855,18 +855,7 @@ def register_routes(app, oauth):
             conn = get_db_connection()
             cur = conn.cursor()
             
-            # Check the number of devices registered to the user's email
-            cur.execute("""
-                SELECT COUNT(*) FROM token_device WHERE email = %s
-            """, (email,))
-            registered_devices_count = cur.fetchone()[0]
-            
-            # Check if the user has enough devices registered
-            if registered_devices_count < device_count:
-                flash(f"You do not have enough devices registered. You have {registered_devices_count} devices registered.", "error")
-                cur.close()
-                conn.close()
-                return redirect(url_for('request_device'))
+           
 
             # Insert the device request into the device_requests table
             cur.execute("""
