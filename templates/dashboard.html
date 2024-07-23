@@ -9,6 +9,10 @@
     />
     <link rel="stylesheet" href="../static/css/dashboard.css" />
     <link rel="stylesheet" href="chart-styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
     <title>Temp Dashboard</title>
     <style>
       /* Add your custom CSS here */
@@ -179,6 +183,11 @@
             ><i class="bx bxs-dashboard"></i>Dashboard</a
           >
         </li>
+        <li>
+          <a href="#" id="analytics-link"
+            ><i class="bx bxs-chart"></i>Analytics</a
+          >
+        </li>
 
         <li>
           <a href="#" id="request-device-link"
@@ -257,38 +266,16 @@
         </div>
         <div id="analytics-content" class="content-section">
           <h2>Analytics Content</h2>
-          <select id="deviceSelect" onchange="fetchDeviceData()">
-            <option value="">Select Device</option>
-            {% for device in devices %}
-            <option value="{{ device }}">{{ device }}</option>
-            {% endfor %}
-          </select>
+          <div class="chart-container">
+            <h1>Real-time Temperature and Humidity Monitor</h1>
+            <canvas id="realTimeChart"></canvas>
+          </div>
 
-          <div class="chart-container">
-            <h1 class="chart-title">Voltage</h1>
-            <canvas id="voltageChart"></canvas>
-            <div id="voltageTable" class="table-container"></div>
-          </div>
-          <div class="chart-container">
-            <h1 class="chart-title">Current</h1>
-            <canvas id="currentChart"></canvas>
-            <div id="currentTable" class="table-container"></div>
-          </div>
-          <div class="chart-container">
-            <h1 class="chart-title">Power</h1>
-            <canvas id="powerChart"></canvas>
-            <div id="powerTable" class="table-container"></div>
-          </div>
-          <div class="chart-container">
-            <h1 class="chart-title">Brightness Level</h1>
-            <canvas id="brightnessChart"></canvas>
-            <div id="brightnessTable" class="table-container"></div>
-          </div>
-          <div class="chart-container">
-            <h1 class="chart-title">Battery Temperature</h1>
-            <canvas id="batteryChart"></canvas>
-            <div id="batteryTable" class="table-container"></div>
-          </div>
+          <div
+            id="data-temperature"
+            style="height: 400px; min-width: 310px"
+          ></div>
+          <div id="data-humidity" style="height: 400px; min-width: 310px"></div>
         </div>
 
         <div id="device-content" class="content-section">
@@ -402,6 +389,148 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.1.0/dist/chartjs-adapter-luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0"></script>
+
+    <script>
+      class Image {
+        constructor(imgUrl, size) {
+          this.imgUrl = imgUrl;
+          this.size = size;
+        }
+
+        backgroundImage() {
+          console.log("inside function ");
+          // Select the Image
+          var img = document.querySelector(".jumbotron");
+
+          // create Css Text
+          var text =
+            "margin:auto;" +
+            "background-image: url(" +
+            this.imgUrl +
+            ");" +
+            "background-size:cover;" +
+            "opacity:1;" +
+            "background-blend-mode: darken;" +
+            "height: " +
+            this.size +
+            "vh;";
+
+          img.style.cssText = text;
+        }
+
+        centerTitle() {
+          /*
+            Center the Title
+         */
+          var t1 = document.querySelector("#title");
+          t1.classList.add("text-white");
+          t1.classList.add("text-center");
+          t1.classList.add("display-3");
+        }
+      }
+
+      const size = "50";
+      var obj = new Image("your-image-url-here", size);
+      obj.backgroundImage();
+      obj.centerTitle();
+    </script>
+
+    <script>
+      let isDarkTheme = false;
+      const ctx = document.getElementById("realTimeChart").getContext("2d");
+      let chart;
+
+      function createChart() {
+        if (chart) {
+          chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "Temperature (°C)",
+                data: [],
+                borderColor: "rgb(255, 99, 132)",
+                backgroundColor: "rgba(255, 99, 132, 0.2)",
+                fill: true,
+                tension: 0.4,
+              },
+              {
+                label: "Humidity (%)",
+                data: [],
+                borderColor: "rgb(54, 162, 235)",
+                backgroundColor: "rgba(54, 162, 235, 0.2)",
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                type: "realtime",
+                realtime: {
+                  duration: 20000,
+                  refresh: 1000,
+                  delay: 2000,
+                  onRefresh: (chart) => {
+                    chart.data.datasets.forEach((dataset) => {
+                      dataset.data.push({
+                        x: Date.now(),
+                        y: dataset.label.includes("Temperature")
+                          ? (Math.random() * 10 + 20).toFixed(1)
+                          : (Math.random() * 20 + 40).toFixed(1),
+                      });
+                    });
+                  },
+                },
+                time: {
+                  unit: "second",
+                },
+                grid: {
+                  color: "rgba(0, 0, 0, 0.1)",
+                },
+                ticks: {
+                  color: "#2c3e50",
+                },
+              },
+              y: {
+                beginAtZero: false,
+                suggestedMin: 15,
+                suggestedMax: 65,
+                grid: {
+                  color: "rgba(0, 0, 0, 0.1)",
+                },
+                ticks: {
+                  color: "#2c3e50",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                position: "top",
+                labels: {
+                  color: "#2c3e50",
+                },
+              },
+            },
+            animation: {
+              duration: 1000,
+              easing: "linear",
+            },
+          },
+        });
+      }
+
+      createChart();
+    </script>
     <script>
       function changeDeviceCount(delta) {
         const deviceCountElement = document.getElementById("device-count");
@@ -480,7 +609,7 @@
         });
 
         loadLastActiveSection();
-        data = [];
+        /* data = [];
 
         processChartData(data);
 
@@ -622,7 +751,7 @@
           table.appendChild(tbody);
           tableContainer.innerHTML = "";
           tableContainer.appendChild(table);
-        }
+        }*/
 
         const notifIcon = document.querySelector(".notif");
         const notifContent = document.querySelector(".notif-content");
@@ -645,11 +774,11 @@
             showSection("dashboard-content");
           });
 
-        /*    document
+        document
           .getElementById("analytics-link")
           .addEventListener("click", function () {
             showSection("analytics-content");
-          });*/
+          });
 
         document
           .getElementById("request-device-link")
