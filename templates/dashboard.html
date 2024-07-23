@@ -826,22 +826,6 @@
                 return;
               }
 
-              if (registeredDevicesCount == 0) {
-                displayFlashMessage(
-                  "You don't have any devices registered on this mail"
-                );
-                return;
-              }
-
-              // Validate device count before submitting
-              if (deviceCount > registeredDevicesCount) {
-                displayFlashMessage(
-                  `You do not have enough devices registered. You have ${registeredDevicesCount} devices registered.`,
-                  "error"
-                );
-                return;
-              }
-
               const data = Object.fromEntries(formData.entries());
 
               axios
