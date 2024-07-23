@@ -20,6 +20,8 @@ import string
 from werkzeug.security import generate_password_hash
 import secrets
 import requests
+from datetime import datetime
+import pytz
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -171,38 +173,42 @@ def register_routes(app, oauth):
      cur.execute("SELECT * FROM user_profiles WHERE email=%s", (email,))
      existing_user = cur.fetchone()
 
-     if existing_user:
-            # Use the existing contact if it exists
-            existing_contact = existing_user[7]  # Assuming contact is the 7th field in the user_profiles table
-            if all(value is not None for value in existing_user):
-                conn.close()
-                session["login_email"] = email  # Save email to session
-                log_action(email, "User logged in with Google")
-                send_webhook("profile_updated", {"email": email, "action": "User logged in with Google"})
-                return redirect(url_for("DashBoard"))
+    # Convert UTC timestamps to IST
+     utc_now = datetime.utcnow()
+     ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
-            logging.debug(f"Updating user with values: {first_name} {last_name}, {birthday}, {gender}, {existing_contact}, {email}")
-            cur.execute(
-                "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=NOW() WHERE email=%s",
-                (f"{first_name} {last_name}", birthday, gender, existing_contact, email)
-            )
+     if existing_user:
+        # Use the existing contact if it exists
+        existing_contact = existing_user[7]  # Assuming contact is the 7th field in the user_profiles table
+        if all(value is not None for value in existing_user):
+            conn.close()
+            session["login_email"] = email  # Save email to session
+            log_action(email, "User logged in with Google")
             send_webhook("profile_updated", {"email": email, "action": "User logged in with Google"})
+            return redirect(url_for("DashBoard"))
+
+        logging.debug(f"Updating user with values: {first_name} {last_name}, {birthday}, {gender}, {existing_contact}, {email}")
+        cur.execute(
+            "UPDATE user_profiles SET name=%s, birthday=%s, gender=%s, contact=%s, updated_at=%s WHERE email=%s",
+            (f"{first_name} {last_name}", birthday, gender, existing_contact, ist_now, email)
+        )
+        send_webhook("profile_updated", {"email": email, "action": "User logged in with Google"})
      else:
-            # Insert a new user with contact set to None
-            logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
-            cur.execute(
-                "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())",
-                (email, username, hashed_password, f"{first_name} {last_name}", birthday, gender, None, profile_id)
-            )
-            send_webhook("profile_created", {"email": email, "action": "User registered with Google"})
-  
+        # Insert a new user with contact set to None
+        logging.debug(f"Inserting user with values: {email}, {username}, {hashed_password}, {first_name} {last_name}, {birthday}, {gender}, None, {profile_id}")
+        cur.execute(
+            "INSERT INTO user_profiles (email, username, password, name, birthday, gender, contact, profile_id, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (email, username, hashed_password, f"{first_name} {last_name}", birthday, gender, None, profile_id, ist_now, ist_now)
+        )
+        send_webhook("profile_created", {"email": email, "action": "User registered with Google"})
+
      conn.commit()
      conn.close()
 
     # Save email in the session
      session["login_email"] = email
      session["user_email"] = email  # Save user_info.email to session
-     log_action(email, "User logged In")
+     log_action(email, "User logged in")
      return redirect(url_for("profile"))
 
 
@@ -653,10 +659,12 @@ def register_routes(app, oauth):
      try:
         conn = get_db_connection()
         cur = conn.cursor()
+        ist = pytz.timezone('Asia/Kolkata')
+        current_time_ist = datetime.now(ist)
         cur.execute("""
             INSERT INTO webhooks (email, event, data, created_at)
             VALUES (%s, %s, %s, %s)
-        """, (email, event, json.dumps(data), datetime.now()))
+        """, (email, event, json.dumps(data), current_time_ist))
         conn.commit()
         cur.close()
         conn.close()
@@ -684,11 +692,15 @@ def register_routes(app, oauth):
 
         webhooks = []
         for row in rows:
+           
+            created_at_utc = row[3]
+            created_at_ist = created_at_utc.astimezone(pytz.timezone('Asia/Kolkata'))
+            formatted_date = created_at_ist.strftime('%d-%m-%Y %H:%M:%S')
             webhooks.append({
                 'email': row[0],
                 'event': row[1],
                 'data': json.loads(row[2]),
-                'created_at': row[3].isoformat()
+                'created_at': formatted_date
             })
 
         return jsonify(webhooks)
@@ -739,6 +751,8 @@ def register_routes(app, oauth):
                 flash("A device with this IMEI already exists.", "danger")
                 conn.close()
                 return render_template('add_device.html', form=form)
+            ist = pytz.timezone('Asia/Kolkata')
+            current_time_ist = datetime.now(ist)
 
             cur.execute("""
                 INSERT INTO devices (email, entityName, deviceIMEI, simICCId, batterySLNo, panelSLNo, luminarySLNo, mobileNo, district, panchayat, block, wardNo, poleNo, active, installationDate, created_at)
@@ -759,7 +773,7 @@ def register_routes(app, oauth):
                 form_data["poleNo"],
                 form_data["active"],
                 form_data["installationDate"],
-                datetime.now()
+                current_time_ist,
             ))
             conn.commit()
             cur.close()
@@ -854,14 +868,15 @@ def register_routes(app, oauth):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            
+            ist = pytz.timezone('Asia/Kolkata')
+            current_time_ist = datetime.now(ist)
            
 
             # Insert the device request into the device_requests table
             cur.execute("""
                 INSERT INTO device_requests (email, device_count, status, created_at)
                 VALUES (%s, %s, %s, %s)
-            """, (email, device_count, 'pending', datetime.now()))
+            """, (email, device_count, 'pending', current_time_ist))
             conn.commit()
             cur.close()
             conn.close()
