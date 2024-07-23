@@ -283,13 +283,13 @@
               requests.forEach((request) => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-                  <td>${request[1]}</td>
-                  <td>${request[2]}</td>
-                  <td>
-                    <button onclick="processRequest(${request[0]}, 'approved', '${request[1]}')">Approve</button>
-                    <button onclick="processRequest(${request[0]}, 'rejected', '${request[1]}')">Reject</button>
-                  </td>
-                `;
+          <td>${request.email}</td>
+          <td>${request.device_count}</td>
+          <td>
+            <button onclick="processRequest(${request.id}, 'approved', '${request.email}')">Approve</button>
+            <button onclick="processRequest(${request.id}, 'rejected', '${request.email}')">Reject</button>
+          </td>
+        `;
                 requestTableBody.appendChild(row);
               });
             })
