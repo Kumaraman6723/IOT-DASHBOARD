@@ -142,55 +142,6 @@
         margin: 5px 0;
       }
 
-      .notif-content {
-        display: none;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        padding: 10px;
-        max-width: 300px;
-        position: absolute;
-        right: 20px;
-        top: 50px;
-        z-index: 1000;
-        border-radius: 8px;
-      }
-
-      .notif-content ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-
-      .notif-content ul li {
-        border-bottom: 1px solid #ddd;
-        padding: 10px;
-        transition: background-color 0.3s;
-      }
-
-      .notif-content ul li:hover {
-        background-color: #f9f9f9;
-      }
-
-      .notif-content ul li:last-child {
-        border-bottom: none;
-      }
-
-      .notif {
-        position: relative;
-        cursor: pointer;
-      }
-
-      .notif .count {
-        background-color: red;
-        color: white;
-        font-size: 12px;
-        border-radius: 50%;
-        padding: 2px 6px;
-        position: absolute;
-        top: -5px;
-        right: -5px;
-      }
       .status-message {
         color: red;
         font-size: 1em;
@@ -248,22 +199,8 @@
     <div class="content">
       <nav>
         <i class="bx bx-menu"></i>
-        <form action="#">
-          <div class="form-input">
-            <input type="search" placeholder="Search..." />
-            <button class="search-btn" type="submit">
-              <i class="bx bx-search"></i>
-            </button>
-          </div>
-        </form>
-        <input type="checkbox" id="theme-toggle" hidden />
-        <label for="theme-toggle" class="theme-toggle"></label>
-        <a href="#" class="notif">
-          <i class="bx bx-bell"></i><span class="count">1</span>
-          <div class="notif-content">
-            <ul id="notification-list"></ul>
-          </div>
-        </a>
+        <form action="#"></form>
+
         <a href="#" id="loadProfile">
           <img
             src="https://img.icons8.com/?size=100&id=rrtYnzKMTlUr&format=png&color=000000"
@@ -661,28 +598,13 @@
     </script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const toggler = document.getElementById("theme-toggle");
         const sideLinks = document.querySelectorAll(
           ".sidebar .side-menu li a:not(.logout)"
         );
         const menuBar = document.querySelector(".content nav .bx.bx-menu");
         const sideBar = document.querySelector(".sidebar");
-        const searchBtn = document.querySelector(
-          ".content nav form .form-input button"
-        );
-        const searchBtnIcon = document.querySelector(
-          ".content nav form .form-input button .bx"
-        );
-        const searchForm = document.querySelector(".content nav form");
-        const loadingOverlay = document.getElementById("loading-overlay");
 
-        toggler.addEventListener("change", function () {
-          if (this.checked) {
-            document.body.classList.add("dark");
-          } else {
-            document.body.classList.remove("dark");
-          }
-        });
+        const loadingOverlay = document.getElementById("loading-overlay");
 
         sideLinks.forEach((item) => {
           const li = item.parentElement;
@@ -698,189 +620,15 @@
           sideBar.classList.toggle("close");
         });
 
-        searchBtn.addEventListener("click", function (e) {
-          if (window.innerWidth < 576) {
-            e.preventDefault();
-            searchForm.classList.toggle("show");
-            if (searchForm.classList.contains("show")) {
-              searchBtnIcon.classList.replace("bx-search", "bx-x");
-            } else {
-              searchBtnIcon.classList.replace("bx-x", "bx-search");
-            }
-          }
-        });
-
         window.addEventListener("resize", () => {
           if (window.innerWidth < 768) {
             sideBar.classList.add("close");
           } else {
             sideBar.classList.remove("close");
           }
-          if (window.innerWidth > 576) {
-            searchBtnIcon.classList.replace("bx-x", "bx-search");
-            searchForm.classList.remove("show");
-          }
         });
 
         loadLastActiveSection();
-        /* data = [];
-
-        processChartData(data);
-
-        function processChartData(data) {
-          const labels = [];
-          const voltageData = [];
-          const currentData = [];
-          const powerData = [];
-          const brightnessData = [];
-          const batteryData = [];
-
-          data.forEach((record) => {
-            labels.push(record.date);
-            voltageData.push(record.PV);
-            currentData.push(record.PC);
-            powerData.push(record.PP);
-            brightnessData.push(record.BrL);
-            batteryData.push(record.BTem);
-          });
-
-          createChart(
-            "voltageChart",
-            "Voltage",
-            labels,
-            voltageData,
-            "Voltage (V)",
-            "voltageTable"
-          );
-          createChart(
-            "currentChart",
-            "Current",
-            labels,
-            currentData,
-            "Current (A)",
-            "currentTable"
-          );
-          createChart(
-            "powerChart",
-            "Power",
-            labels,
-            powerData,
-            "Power (W)",
-            "powerTable"
-          );
-          createChart(
-            "brightnessChart",
-            "Brightness Level",
-            labels,
-            brightnessData,
-            "Brightness (%)",
-            "brightnessTable"
-          );
-          createChart(
-            "batteryChart",
-            "Battery Temperature",
-            labels,
-            batteryData,
-            "Temperature (°C)",
-            "batteryTable"
-          );
-        }
-
-        function createChart(
-          chartId,
-          title,
-          labels,
-          data,
-          yAxisLabel,
-          tableId
-        ) {
-          const ctx = document.getElementById(chartId).getContext("2d");
-
-          new Chart(ctx, {
-            type: "line",
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: title,
-                  data: data,
-                  borderColor: "rgba(75, 192, 192, 1)",
-                  backgroundColor: "rgba(75, 192, 192, 0.2)",
-                  fill: true,
-                },
-              ],
-            },
-            options: {
-              responsive: true,
-              scales: {
-                x: {
-                  type: "time",
-                  time: {
-                    unit: "day",
-                    tooltipFormat: "MMM dd yyyy",
-                  },
-                },
-                y: {
-                  title: {
-                    display: true,
-                    text: yAxisLabel,
-                  },
-                },
-              },
-            },
-          });
-
-          generateTable(tableId, labels, data);
-        }
-
-        function generateTable(tableId, labels, data) {
-          const tableContainer = document.getElementById(tableId);
-          const table = document.createElement("table");
-          const thead = document.createElement("thead");
-          const tbody = document.createElement("tbody");
-
-          const headerRow = document.createElement("tr");
-          const dateHeader = document.createElement("th");
-          dateHeader.textContent = "Date";
-          const valueHeader = document.createElement("th");
-          valueHeader.textContent = "Value";
-
-          headerRow.appendChild(dateHeader);
-          headerRow.appendChild(valueHeader);
-          thead.appendChild(headerRow);
-
-          labels.forEach((label, index) => {
-            const row = document.createElement("tr");
-            const dateCell = document.createElement("td");
-            dateCell.textContent = label;
-            const valueCell = document.createElement("td");
-            valueCell.textContent = data[index];
-
-            row.appendChild(dateCell);
-            row.appendChild(valueCell);
-            tbody.appendChild(row);
-          });
-
-          table.appendChild(thead);
-          table.appendChild(tbody);
-          tableContainer.innerHTML = "";
-          tableContainer.appendChild(table);
-        }*/
-
-        const notifIcon = document.querySelector(".notif");
-        const notifContent = document.querySelector(".notif-content");
-        const notificationList = document.getElementById("notification-list");
-
-        notifIcon.addEventListener("click", function () {
-          notifContent.style.display =
-            notifContent.style.display === "none" ? "block" : "none";
-        });
-
-        document.addEventListener("click", function (event) {
-          if (!notifIcon.contains(event.target)) {
-            notifContent.style.display = "none";
-          }
-        });
 
         document
           .getElementById("dashboard-link")
