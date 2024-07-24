@@ -8,7 +8,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../static/css/dashboard.css" />
-    <link rel="stylesheet" href="chart-styles.css" />
+
     <link
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap"
       rel="stylesheet"
@@ -160,44 +160,47 @@
       </a>
       <ul class="side-menu">
         <li>
-          <a href="#" id="dashboard-link"
-            ><i class="bx bxs-dashboard"></i>Dashboard</a
-          >
+          <a href="#" id="dashboard-link">
+            <i class="bx bxs-dashboard"></i>Dashboard
+          </a>
         </li>
         <li>
-          <a href="#" id="analytics-link"
-            ><i class="bx bxs-chart"></i>Analytics</a
-          >
+          <a href="#" id="analytics-link">
+            <i class="bx bxs-chart"></i>Analytics
+          </a>
         </li>
-
         <li>
-          <a href="#" id="request-device-link"
-            ><i class="bx bx-devices"></i>Request Device Data</a
-          >
+          <a href="#" id="request-device-link">
+            <i class="bx bx-transfer"></i>Request Device Data
+          </a>
         </li>
-        <ul>
-          <li class="add-device-link">
-            <a href="#" id="add-device-link">
-              <i class="bx bx-devices"></i>Add Device
-            </a>
-          </li>
-          <li class="get-device-link">
-            <a href="#" id="get-device-link">
-              <i class="bx bx-devices"></i>Get Device Data
-            </a>
-          </li>
-        </ul>
-      </ul>
-      <ul class="side-menu">
         <li>
-          <a href="#" id="logout-link" class="logout"
-            ><i class="bx bx-log-out-circle"></i>Logout</a
-          >
+          <a href="#" id="add-device-link">
+            <i class="bx bx-plus-circle"></i>Add Device
+          </a>
+        </li>
+        <li>
+          <a href="#" id="get-device-link">
+            <i class="bx bx-data"></i>Get Device Data
+          </a>
         </li>
       </ul>
     </div>
     <div class="content">
       <nav>
+        <div class="nav-left" id="clickable-div">
+          <ul class="breadcrumb"></ul>
+        </div>
+        <div class="nav-center">
+          <ul class="nav-links">
+            <li><a href="#" class="nav-link ani">About</a></li>
+            <li>
+              <a href="{{ url_for('contact') }}" class="nav-link ani"
+                >Contact Us</a
+              >
+            </li>
+          </ul>
+        </div>
         <i class="bx bx-menu"></i>
         <form action="#"></form>
 
@@ -210,11 +213,6 @@
         </a>
       </nav>
       <main>
-        <div class="header" id="clickable-div">
-          <div class="left">
-            <ul class="breadcrumb"></ul>
-          </div>
-        </div>
         <div id="flash-messages">
           {% with messages = get_flashed_messages() %} {% if messages %}
           <ul class="flashes">
@@ -224,13 +222,125 @@
           </ul>
           {% endif %} {% endwith %}
         </div>
-        <div id="dashboard-content" class="content-section">
-          <h2>Dashboard Content</h2>
-          <p>
-            Welcome to the dashboard! Here you can see an overview of your
-            activity.
-          </p>
+        <div class="container">
+          <div id="dashboard-content" class="content-section">
+            <h1>Welcome to Your Dashboard</h1>
+            <div class="dashboard-wrapper">
+              <div class="dashboard-left">
+                <div id="activity-overview" class="box">
+                  <h2>Activity Overview</h2>
+                  <p>
+                    Here's a snapshot of your recent activities and device
+                    performance.
+                  </p>
+                  <ul>
+                    <li>
+                      <span class="efficiency high">95%</span> Device XYZ1
+                    </li>
+                    <li>
+                      <span class="efficiency medium">80%</span> Device XYZ2
+                    </li>
+                    <li><span class="efficiency low">70%</span> Device XYZ3</li>
+                  </ul>
+                </div>
+                <div id="device-list" class="box">
+                  <h2>Registered Devices</h2>
+                  <ul id="device-list-items">
+                    <li>
+                      <span class="status active"></span>
+                      <strong>Device IMEI:</strong> 123456789012345
+                      <br /><strong>Location:</strong> District 1, Panchayat A
+                      <br /><strong>Installation Date:</strong> 2024-01-15
+                    </li>
+                    <li>
+                      <span class="status inactive"></span>
+                      <strong>Device IMEI:</strong> 234567890123456
+                      <br /><strong>Location:</strong> District 2, Panchayat B
+                      <br /><strong>Installation Date:</strong> 2023-12-01
+                    </li>
+                    <li>
+                      <span class="status active"></span>
+                      <strong>Device IMEI:</strong> 345678901234567
+                      <br /><strong>Location:</strong> District 3, Panchayat C
+                      <br /><strong>Installation Date:</strong> 2024-03-20
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div class="dashboard-right">
+                <div id="energy-production" class="box">
+                  <h2>Energy Production</h2>
+                  <div class="chart-placeholder">
+                    <div class="bar" style="height: 60%"></div>
+                    <div class="bar" style="height: 80%"></div>
+                    <div class="bar" style="height: 40%"></div>
+                    <div class="bar" style="height: 90%"></div>
+                    <div class="bar" style="height: 70%"></div>
+                  </div>
+                </div>
+                <div id="weather-forecast" class="box">
+                  <h2>Weather Forecast</h2>
+                  <div class="weather-icons">
+                    <div class="weather-day">
+                      <i class="fas fa-sun"></i>
+                      <span>Mon</span>
+                    </div>
+                    <div class="weather-day">
+                      <i class="fas fa-cloud-sun"></i>
+                      <span>Tue</span>
+                    </div>
+                    <div class="weather-day">
+                      <i class="fas fa-cloud"></i>
+                      <span>Wed</span>
+                    </div>
+                    <div class="weather-day">
+                      <i class="fas fa-sun"></i>
+                      <span>Thu</span>
+                    </div>
+                    <div class="weather-day">
+                      <i class="fas fa-cloud-sun"></i>
+                      <span>Fri</span>
+                    </div>
+                  </div>
+                </div>
+                <div id="device-info" class="box">
+                  <h2>About IoT Solar Devices</h2>
+                  <p><strong>What is an IoT Solar Device?</strong></p>
+                  <p>
+                    IoT solar devices are advanced systems that integrate solar
+                    energy technology with Internet of Things (IoT)
+                    capabilities. These devices monitor, control, and manage
+                    solar energy generation and usage in real time.
+                  </p>
+                  <p><strong>How Does It Work?</strong></p>
+                  <ul>
+                    <li>
+                      <strong>Data Collection:</strong> Solar panels equipped
+                      with sensors collect data on sunlight intensity, panel
+                      temperature, and energy output.
+                    </li>
+                    <li>
+                      <strong>Data Transmission:</strong> The collected data is
+                      transmitted to a central server via wireless
+                      communication.
+                    </li>
+                    <li>
+                      <strong>Analysis & Monitoring:</strong> The server
+                      analyzes the data to provide insights on energy
+                      production, efficiency, and potential issues.
+                    </li>
+                    <li>
+                      <strong>Control:</strong> Users can remotely monitor and
+                      control the devices through a web or mobile application,
+                      ensuring optimal performance.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div id="analytics-content" class="content-section">
           <h2>Analytics Content</h2>
           <div class="chart-container">
@@ -544,44 +654,73 @@
       createChart1();
       createChart2();
     </script>
-
     <script>
-      class Image {
-        constructor(imgUrl, size) {
-          this.imgUrl = imgUrl;
-          this.size = size;
+      document.addEventListener("DOMContentLoaded", function () {
+        const dashboardLink = document.getElementById("dashboard-link");
+        const analyticsLink = document.getElementById("analytics-link");
+        const dashboardContent = document.getElementById("dashboard-content");
+        const analyticsContent = document.getElementById("analytics-content");
+
+        function showSection(section) {
+          // Hide all sections
+          document.querySelectorAll(".content-section").forEach((sec) => {
+            sec.style.display = "none";
+          });
+          // Show the selected section
+          section.style.display = "block";
         }
 
-        backgroundImage() {
-          console.log("inside function ");
-          var img = document.querySelector(".jumbotron");
-          var text =
-            "margin:auto;" +
-            "background-image: url(" +
-            this.imgUrl +
-            ");" +
-            "background-size:cover;" +
-            "opacity:1;" +
-            "background-blend-mode: darken;" +
-            "height: " +
-            this.size +
-            "vh;";
-          img.style.cssText = text;
-        }
+        dashboardLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(dashboardContent);
+        });
 
-        centerTitle() {
-          var t1 = document.querySelector("#title");
-          t1.classList.add("text-white");
-          t1.classList.add("text-center");
-          t1.classList.add("display-3");
-        }
-      }
+        analyticsLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          showSection(analyticsContent);
+        });
 
-      const size = "50";
-      var obj = new Image("your-image-url-here", size);
-      obj.backgroundImage();
-      obj.centerTitle();
+        // Initial display
+        showSection(dashboardContent);
+
+        fetch("/dashboard/get_device_list")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              console.error("Error fetching device list:", data.error);
+              return;
+            }
+
+            const deviceListItems =
+              document.getElementById("device-list-items");
+            deviceListItems.innerHTML = ""; // Clear existing content
+
+            if (data.devices.length === 0) {
+              const noDevicesMessage = document.createElement("li");
+              noDevicesMessage.textContent =
+                "No devices are registered for now.";
+              deviceListItems.appendChild(noDevicesMessage);
+            } else {
+              data.devices.forEach((device) => {
+                const listItem = document.createElement("li");
+                const link = document.createElement("a");
+                link.href = "#";
+                link.textContent = `Device ID: ${device.device_id}`;
+                link.addEventListener("click", function (e) {
+                  e.preventDefault();
+                  showSection(analyticsContent);
+                });
+                listItem.appendChild(link);
+                deviceListItems.appendChild(listItem);
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      });
     </script>
+
     <script>
       function changeDeviceCount(delta) {
         const deviceCountElement = document.getElementById("device-count");
@@ -795,7 +934,7 @@
         //request device access
 
         window.onload = function () {
-          let registeredDevicesCount = 0;
+          /* let registeredDevicesCount = 0;
 
           // Fetch the registered device count
           axios
@@ -809,7 +948,7 @@
             })
             .catch((error) => {
               console.error("Error fetching registered device count.", error);
-            });
+            });*/
 
           // Check the device request status
           axios
@@ -997,7 +1136,6 @@
               document.getElementById("add-device-message");
             if (addDeviceMessage.classList.contains("hidden")) {
               showSection("view-device-content");
-              fetchDevices();
             } else {
               alert("You need to add a device to access this section.");
             }
