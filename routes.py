@@ -893,9 +893,9 @@ def register_routes(app, oauth):
 
      return render_template('dashboard.html', form=form)
 
-    @app.route('/dashboard/get_device_count', methods=['GET'])
+    @app.route('/dashboard/get_device_list', methods=['GET'])
     @login_required
-    def get_device_count():
+    def get_device_list():
      email = session.get("login_email") or session.get("user", {}).get("email")
      if not email:
         return jsonify({"error": "User email not found in session."}), 400
@@ -904,15 +904,18 @@ def register_routes(app, oauth):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT COUNT(*) FROM token_device WHERE email = %s
+            SELECT device_id FROM token_device WHERE email = %s
         """, (email,))
-        registered_devices_count = cur.fetchone()[0]
+        devices = cur.fetchall()
         cur.close()
         conn.close()
-        return jsonify({"registered_devices_count": registered_devices_count})
+
+        device_list = [{"device_id": device[0]} for device in devices]
+        return jsonify({"devices": device_list})
      except Exception as e:
-        logging.error(f"Error fetching device count for email {email}: {e}")
-        return jsonify({"error": "An error occurred while fetching the device count."}), 500
+        logging.error(f"Error fetching device list for email {email}: {e}")
+        return jsonify({"error": "An error occurred while fetching the device list."}), 500
+
     
     @app.route('/dashboard/get_request_status', methods=['GET'])
     @login_required
