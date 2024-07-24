@@ -174,7 +174,7 @@ def register_routes(app, oauth):
      existing_user = cur.fetchone()
 
     # Convert UTC timestamps to IST
-     utc_now = datetime.utcnow()
+     utc_now = datetime.now()
      ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
 
      if existing_user:
@@ -1110,7 +1110,7 @@ def register_routes(app, oauth):
         return jsonify(device_added=False)
     
     def get_ist_time():
-     utc_time = datetime.utcnow()
+     utc_time = datetime.now()
      ist_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Asia/Kolkata'))
      return ist_time.isoformat()
 
