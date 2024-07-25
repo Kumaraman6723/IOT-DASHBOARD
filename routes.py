@@ -941,6 +941,38 @@ def register_routes(app, oauth):
      except Exception as e:
         logging.error(f"Error fetching request status for email {email}: {e}")
         return jsonify({"error": "An error occurred while fetching the request status."}), 500
+    
+    @app.route('/dashboard/check_device_requests', methods=['GET'])
+    @login_required
+    def check_device_requests():
+     email = session.get("login_email") or session.get("user", {}).get("email")
+     if not email:
+        return jsonify({"error": "User email not found in session."}), 400
+
+     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT SUM(device_count) FROM device_requests WHERE email = %s AND status = 'approved'
+        """, (email,))
+        device_request_count = cur.fetchone()[0] or 0
+
+        cur.execute("""
+            SELECT COUNT(*) FROM devices WHERE email = %s
+        """, (email,))
+        device_count = cur.fetchone()[0] or 0
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "requested_devices": device_request_count,
+            "added_devices": device_count
+        }), 200
+     except Exception as e:
+        logging.error(f"Error checking device requests for email {email}: {e}")
+        return jsonify({"error": "An error occurred while checking device requests."}), 500
+
 
   
     @app.route('/admindashboard/approve_device_requests', methods=['GET', 'POST'])
