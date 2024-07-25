@@ -1330,12 +1330,9 @@ h2 {
   color: #2980b9; /* A darker blue on hover */
 }
 
-.sidebar .side-menu li.active a i {
-  color: #ffffff; /* White for active items */
-}
 .sidebar {
   width: 250px;
-  background-color: #ffffff;
+
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   height: 100vh;
   padding: 20px 0;
@@ -1370,46 +1367,6 @@ h2 {
   width: 24px;
   text-align: center;
   color: #3498db;
-}
-
-.device-counter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 15px;
-  background-color: #f1f3f5;
-  border-radius: 4px;
-  padding: 5px;
-  width: 100%;
-  max-width: 200px;
-}
-
-.device-counter button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  font-size: 18px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.device-counter button:hover {
-  background-color: #0089c1;
-}
-
-#device-count {
-  font-size: 18px;
-  font-weight: bold;
-  margin: 0 15px;
-  color: var(--text-color);
-  min-width: 30px;
-  text-align: center;
 }
 
 #request-device {
@@ -1770,4 +1727,172 @@ nav {
     justify-content: center;
     margin: 10px 0;
   }
+}
+
+.sidebar .side-menu li a {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  color: var(--dark);
+  transition: all 0.3s ease;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.sidebar .side-menu li a span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar .side-menu li a i {
+  min-width: 24px;
+  margin-right: 12px;
+  font-size: 20px;
+  color: #3498db;
+}
+
+.sidebar .side-menu li a:hover {
+  background-color: var(--light-primary);
+}
+
+.sidebar .side-menu li.active a,
+.sidebar .side-menu li a:hover {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.sidebar .side-menu li.active a i,
+.sidebar .side-menu li a:hover i {
+  color: #ffffff;
+}
+
+#device-list1 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.device {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.device:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.device p {
+  margin: 12px 0;
+  color: #2c3e50;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.device p:first-child {
+  font-size: 20px;
+  font-weight: bold;
+  color: #3498db;
+
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.device p:nth-child(even) {
+  background-color: rgba(52, 152, 219, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.device p strong {
+  color: #2980b9;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  #device-list1 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Error message styling */
+#device-list1 > p {
+  color: #e74c3c;
+  font-weight: bold;
+  text-align: center;
+  padding: 25px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 12px;
+  margin: 20px auto;
+  max-width: 600px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.device-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  background-color: #f1f3f5;
+  border-radius: 8px;
+  padding: 5px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.device-counter button {
+  background-color: #3498db; /* A nice blue color, you can adjust as needed */
+  color: white;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.1s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.device-counter button:hover {
+  background-color: #2980b9;
+}
+
+.device-counter button:active {
+  transform: scale(0.95);
+}
+
+#device-count {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0 15px;
+  color: #333;
+  min-width: 30px;
+  text-align: center;
+}
+
+#request-device {
+  background-color: #05c2e4; /* Green color for the request button */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 200px;
+}
+
+#request-device:hover {
+  background-color: #1a7ec5;
 }
