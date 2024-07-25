@@ -184,6 +184,9 @@
             <i class="bx bx-data"></i>Get Device Data
           </a>
         </li>
+        <li>
+          <a href="#" id="logout-link"> <i class="bx bx-log-out"></i>Logout </a>
+        </li>
       </ul>
     </div>
     <div class="content">
@@ -837,7 +840,9 @@
               .then((response) => {
                 loadingOverlayAdd.style.display = "none";
                 displayFlashMessage("Device Added Successfully");
-                location.reload();
+                setTimeout(() => {
+                  location.reload();
+                }, 4000); // Adjust the delay as needed (2000ms = 2 seconds)
               })
               .catch((error) => {
                 loadingOverlayAdd.style.display = "none";
@@ -1002,6 +1007,9 @@
                       "none";
                     document.getElementById("pending-request").style.display =
                       "block";
+                    setTimeout(() => {
+                      location.reload();
+                    }, 2000); // Adjust the delay as needed (2000ms = 2 seconds)
                   }
                 })
                 .catch((error) => {
