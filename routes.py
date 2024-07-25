@@ -789,7 +789,7 @@ def register_routes(app, oauth):
             flash("An error occurred while adding the device.", "error")
 
      return render_template( 'dashboard.html',form=form)
-     
+      
     @app.route('/dashboard/view_devices', methods=['GET'])
     def view_devices():
      email = session.get("login_email") or session.get("user", {}).get("email")
@@ -797,11 +797,17 @@ def register_routes(app, oauth):
         flash("User email not found in session.", "error")
         return redirect(url_for("login"))
 
+     page = int(request.args.get('page', 1))
+     page_size = int(request.args.get('page_size', 10))
+     offset = (page - 1) * page_size
+
      try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT * FROM devices WHERE email = %s", (email,))
+        cur.execute("SELECT * FROM devices WHERE email = %s LIMIT %s OFFSET %s", (email, page_size, offset))
         devices = cur.fetchall()
+        cur.execute("SELECT COUNT(*) FROM devices WHERE email = %s", (email,))
+        total_devices = cur.fetchone()[0]
      except Exception as e:
         return jsonify({"error": str(e)})
      finally:
@@ -830,7 +836,12 @@ def register_routes(app, oauth):
         }
         devices_data.append(device_data)
 
-     return jsonify(devices_data)
+     return jsonify({
+        "devices": devices_data,
+        "total_devices": total_devices,
+        "page": page,
+        "page_size": page_size
+     })
 
 
  
@@ -1241,4 +1252,3 @@ def register_routes(app, oauth):
         finally:
             cur.close()
             conn.close()
-
