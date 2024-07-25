@@ -788,7 +788,7 @@ def register_routes(app, oauth):
             logging.error(f"Error adding device for email {email}: {e}")
             flash("An error occurred while adding the device.", "error")
 
-     return render_template( form=form)
+     return render_template( 'dashboard.html',form=form)
      
     @app.route('/dashboard/view_devices', methods=['GET'])
     def view_devices():
