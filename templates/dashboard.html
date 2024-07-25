@@ -832,22 +832,50 @@
             const data = Object.fromEntries(formData.entries());
 
             axios
-              .post("/dashboard/add_device", data, {
-                headers: {
-                  "X-CSRFToken": csrfToken,
-                },
-              })
+              .get("/dashboard/check_device_requests")
               .then((response) => {
-                loadingOverlayAdd.style.display = "none";
-                displayFlashMessage("Device Added Successfully");
-                setTimeout(() => {
-                  location.reload();
-                }, 4000); // Adjust the delay as needed (2000ms = 2 seconds)
+                const { requested_devices, added_devices } = response.data;
+
+                if (added_devices >= requested_devices) {
+                  loadingOverlayAdd.style.display = "none";
+                  displayFlashMessage(
+                    "You need to request more devices to add a device."
+                  );
+                } else {
+                  axios
+                    .post("/dashboard/add_device", data, {
+                      headers: {
+                        "X-CSRFToken": csrfToken,
+                      },
+                    })
+                    .then((response) => {
+                      loadingOverlayAdd.style.display = "none";
+                      displayFlashMessage("Device Added Successfully");
+                      setTimeout(() => {
+                        location.reload();
+                      }, 4000); // Adjust the delay as needed (2000ms = 2 seconds)
+                    })
+                    .catch((error) => {
+                      loadingOverlayAdd.style.display = "none";
+                      console.error(
+                        "There was an error adding the device:",
+                        error
+                      );
+                      displayFlashMessage(
+                        "Error adding device. Please try again."
+                      );
+                    });
+                }
               })
               .catch((error) => {
                 loadingOverlayAdd.style.display = "none";
-                console.error("There was an error adding the device:", error);
-                displayFlashMessage("Error adding device. Please try again.");
+                console.error(
+                  "There was an error checking device requests:",
+                  error
+                );
+                displayFlashMessage(
+                  "Error checking device requests. Please try again."
+                );
               });
           });
 
